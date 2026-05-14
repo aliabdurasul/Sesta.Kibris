@@ -1,0 +1,2 @@
+// Supabase Edge Functions
+// Each function in its own subdirectory: functions/<name>/index.ts
