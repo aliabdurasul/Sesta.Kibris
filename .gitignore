@@ -1,29 +1,46 @@
-# Dependencies
+# ─── Dependencies ─────────────────────────────────────────────────────────────
 node_modules/
 .pnpm-store/
 
-# Next.js
+# Only pnpm-lock.yaml should be committed. Reject npm/yarn artifacts.
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json
+
+# ─── Next.js build output ─────────────────────────────────────────────────────
 .next/
 out/
 build/
 dist/
 
-# Environment secrets - NEVER COMMIT
+# ─── Environment secrets — NEVER COMMIT ───────────────────────────────────────
+.env
 .env.local
 .env.*.local
+.env.production
+.env.staging
 
-# Supabase local
+# ─── Vercel deployment artifacts ──────────────────────────────────────────────
+.vercel/
+
+# ─── Test / coverage ─────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Supabase local ──────────────────────────────────────────────────────────
 supabase/.temp/
 supabase/functions/.cache/
 
-# OS
+# ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# Debug
+# ─── Debug logs ───────────────────────────────────────────────────────────────
 npm-debug.log*
 pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# TypeScript
+# ─── TypeScript ───────────────────────────────────────────────────────────────
 *.tsbuildinfo
 next-env.d.ts
