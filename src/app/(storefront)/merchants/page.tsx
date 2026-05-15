@@ -18,6 +18,8 @@ type Merchant = Database["public"]["Tables"]["merchants"]["Row"];
 
 // Revalidate every 60 seconds (merchant list changes slowly)
 export const revalidate = 60;
+// Force dynamic to avoid static prerender attempt (uses cookies via createServerClient)
+export const dynamic = "force-dynamic";
 
 async function getMerchants(): Promise<{
   merchants: Pick<

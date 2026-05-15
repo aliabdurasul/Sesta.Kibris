@@ -43,7 +43,9 @@ export default async function MerchantProductsPage() {
 
   if (!merchantId) {
     return (
-        Market kaydınız bulunamadı.
+      <div className="py-16 text-center text-gray-400">
+        <p>Market kaydınız bulunamadı.</p>
+      </div>
     );
   }
 

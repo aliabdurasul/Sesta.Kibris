@@ -9,7 +9,7 @@
  */
 import { useState } from "react";
 import { useCourierSubscription } from "@/hooks/useCourierSubscription";
-import type { Json, OrderStatus } from "@/types/database";
+import type { Json } from "@/types/database";
 
 interface OrderMerchant {
   name: string;
@@ -25,7 +25,7 @@ interface OrderItemData {
 
 interface Order {
   id: string;
-  status: OrderStatus;
+  status: "ASSIGNED" | "IN_TRANSIT";
   total_amount: number;
   delivery_address: Json;
   notes: string | null;
@@ -112,7 +112,7 @@ export function CourierDeliveryQueue({
         isTerminal
           ? prev.filter((o) => o.id !== orderId)
           : prev.map((o) =>
-              o.id === orderId ? { ...o, status: newStatus as OrderStatus } : o,
+              o.id === orderId ? { ...o, status: newStatus as "ASSIGNED" | "IN_TRANSIT" } : o,
             ),
       );
     } catch (err) {

@@ -35,10 +35,14 @@ async function getAssignedOrders(courierId: string) {
     .eq("courier_id", courierId)
     .in("status", ["ASSIGNED", "IN_TRANSIT"])
     .order("created_at", { ascending: true });
-  return (data ?? []) as (Pick<
-    OrderRow,
-    "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"
+  return (data ?? []) as (Omit<
+    Pick<
+      OrderRow,
+      "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"
+    >,
+    "status"
   > & {
+    status: "ASSIGNED" | "IN_TRANSIT";
     merchants: Pick<MerchantRow, "name" | "address" | "phone"> | null;
     order_items: Pick<OrderItemRow, "id" | "quantity" | "snapshot">[];
   })[];

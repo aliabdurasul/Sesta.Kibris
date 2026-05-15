@@ -1,8 +1,4 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "İnternet Bağlantısı Yok — SestaKıbrıs",
-};
+"use client";
 
 export default function OfflinePage() {
   return (
