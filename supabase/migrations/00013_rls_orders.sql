@@ -17,12 +17,12 @@ CREATE POLICY orders_select_customer ON orders
 -- Merchant sees orders for their merchant_id
 CREATE POLICY orders_select_merchant ON orders
   FOR SELECT
-  USING (merchant_id = auth.user_merchant_id());
+  USING (merchant_id = public.user_merchant_id());
 
 -- Courier sees only orders assigned to them
 CREATE POLICY orders_select_courier ON orders
   FOR SELECT
-  USING (courier_id = auth.user_courier_id());
+  USING (courier_id = public.user_courier_id());
 
 -- No client-level INSERT or UPDATE on orders
 -- All mutations go through Edge Functions using service role key
@@ -52,7 +52,7 @@ CREATE POLICY order_items_select_merchant ON order_items
     EXISTS (
       SELECT 1 FROM orders
       WHERE orders.id = order_items.order_id
-        AND orders.merchant_id = auth.user_merchant_id()
+        AND orders.merchant_id = public.user_merchant_id()
     )
   );
 
@@ -63,7 +63,7 @@ CREATE POLICY order_items_select_courier ON order_items
     EXISTS (
       SELECT 1 FROM orders
       WHERE orders.id = order_items.order_id
-        AND orders.courier_id = auth.user_courier_id()
+        AND orders.courier_id = public.user_courier_id()
     )
   );
 
@@ -93,7 +93,7 @@ CREATE POLICY status_log_select_merchant ON order_status_log
     EXISTS (
       SELECT 1 FROM orders
       WHERE orders.id = order_status_log.order_id
-        AND orders.merchant_id = auth.user_merchant_id()
+        AND orders.merchant_id = public.user_merchant_id()
     )
   );
 

@@ -41,17 +41,17 @@ CREATE POLICY products_select_public ON products
 -- Merchant can read ALL their own products (including unavailable)
 CREATE POLICY products_select_merchant ON products
   FOR SELECT
-  USING (merchant_id = auth.user_merchant_id());
+  USING (merchant_id = public.user_merchant_id());
 
 -- Merchant can insert products only for their own merchant_id
 CREATE POLICY products_insert_merchant ON products
   FOR INSERT
-  WITH CHECK (merchant_id = auth.user_merchant_id());
+  WITH CHECK (merchant_id = public.user_merchant_id());
 
 -- Merchant can update their own products
 CREATE POLICY products_update_merchant ON products
   FOR UPDATE
-  USING (merchant_id = auth.user_merchant_id())
-  WITH CHECK (merchant_id = auth.user_merchant_id());
+  USING (merchant_id = public.user_merchant_id())
+  WITH CHECK (merchant_id = public.user_merchant_id());
 
 -- DELETE: not permitted from client (soft delete via is_available = false)

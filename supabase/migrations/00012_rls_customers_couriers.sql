@@ -55,7 +55,7 @@ ALTER TABLE couriers ENABLE ROW LEVEL SECURITY;
 -- Merchant can see all couriers belonging to them
 CREATE POLICY couriers_select_merchant ON couriers
   FOR SELECT
-  USING (merchant_id = auth.user_merchant_id());
+  USING (merchant_id = public.user_merchant_id());
 
 -- Courier can see their own record
 CREATE POLICY couriers_select_own ON couriers
@@ -65,8 +65,8 @@ CREATE POLICY couriers_select_own ON couriers
 -- Merchant can update their couriers (activate/deactivate)
 CREATE POLICY couriers_update_merchant ON couriers
   FOR UPDATE
-  USING (merchant_id = auth.user_merchant_id())
-  WITH CHECK (merchant_id = auth.user_merchant_id());
+  USING (merchant_id = public.user_merchant_id())
+  WITH CHECK (merchant_id = public.user_merchant_id());
 
 -- INSERT: service role only (courier creation via Edge Function)
 -- DELETE: not permitted (soft delete via is_active = false)
