@@ -47,7 +47,7 @@ async function getOrder(orderId: string, userId: string) {
     .from("customers")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   const customerId = (customerRes.data as { id: string } | null)?.id;
   if (!customerId) return null;
@@ -62,7 +62,7 @@ async function getOrder(orderId: string, userId: string) {
     `)
     .eq("id", orderId)
     .eq("customer_id", customerId)
-    .single();
+    .maybeSingle();
 
   return orderRes.data as (Pick<OrderRow, "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"> & {
     merchants: { name: string; phone: string | null } | null;

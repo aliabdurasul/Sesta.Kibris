@@ -200,3 +200,73 @@ export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
   redirect("/");
 }
+
+// ─── Safe context (never throws) ─────────────────────────────────────────────
+
+export type SafeRole =
+  | "anonymous"
+  | "unassigned"
+  | "customer"
+  | "merchant"
+  | "courier"
+  | "admin";
+
+export interface UserContext {
+  userId: string | null;
+  email: string | null;
+  role: SafeRole;
+  merchantId: string | null;
+  courierId: string | null;
+}
+
+const ANONYMOUS_CONTEXT: UserContext = {
+  userId: null,
+  email: null,
+  role: "anonymous",
+  merchantId: null,
+  courierId: null,
+};
+
+/**
+ * Never throws. Returns structured context for layouts and pages.
+ *
+ * Returns:
+ *   role="anonymous"  — no session
+ *   role="unassigned" — session exists but no role anywhere in DB
+ *   role=<role>       — resolved role with optional merchantId/courierId
+ *
+ * Use this as the primary session accessor.
+ * Use requireRole() only when you need hard protection (layout guards).
+ */
+export async function safeGetUserContext(): Promise<UserContext> {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) return ANONYMOUS_CONTEXT;
+
+    const meta = user.app_metadata as Record<string, string> | undefined;
+    const resolved = await resolveUserRole(user.id, meta);
+
+    if (!resolved) {
+      return {
+        userId: user.id,
+        email: user.email ?? null,
+        role: "unassigned",
+        merchantId: null,
+        courierId: null,
+      };
+    }
+
+    return {
+      userId: user.id,
+      email: user.email ?? null,
+      role: resolved.role as SafeRole,
+      merchantId: resolved.merchantId ?? null,
+      courierId: resolved.courierId ?? null,
+    };
+  } catch {
+    // Never propagate auth errors — return anonymous
+    return ANONYMOUS_CONTEXT;
+  }
+}

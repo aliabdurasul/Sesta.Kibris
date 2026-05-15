@@ -6,6 +6,7 @@
 import { notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
 type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
@@ -49,7 +50,7 @@ async function getMerchantWithProducts(slug: string) {
     )
     .eq("slug", slug)
     .eq("is_active", true)
-    .single();
+    .maybeSingle();
 
   const merchant = merchantRes.data as MerchantDetail | null;
   if (!merchant) return null;
@@ -64,8 +65,14 @@ async function getMerchantWithProducts(slug: string) {
     .order("category")
     .order("sort_order");
 
-  if (productsRes.error)
-    throw new Error(`Failed to load products: ${productsRes.error.message}`);
+  // Log error but don't throw — show empty state instead of crashing
+  if (productsRes.error) {
+    log.error("merchant.products.fetch", {
+      merchantId: merchant.id,
+      slug,
+      reason: productsRes.error.message,
+    });
+  }
 
   return {
     merchant,

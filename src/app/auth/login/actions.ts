@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveUserRole, getRoleHomePath } from "@/lib/auth";
+import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
 type ActionState = { error: string } | null;
@@ -76,8 +77,10 @@ export async function loginAction(
   const resolved = await resolveUserRole(userId, meta);
 
   if (!resolved) {
+    log.warn("login.no_role", { userId, email });
     redirect("/auth/role-recovery");
   }
 
+  log.info("login.ok", { userId, role: resolved.role });
   redirect(getRoleHomePath(resolved.role));
 }

@@ -19,7 +19,7 @@ async function getMerchantId(userId: string): Promise<string | null> {
     .from("merchants")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   return (data as Pick<MerchantRow, "id"> | null)?.id ?? null;
 }
 

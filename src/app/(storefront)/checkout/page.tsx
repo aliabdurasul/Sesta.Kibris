@@ -33,7 +33,7 @@ async function getCustomerAddresses(userId: string): Promise<
     .from("customers")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   const customerId = (customerRes.data as { id: string } | null)?.id;
   if (!customerId) return [];

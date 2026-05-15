@@ -19,7 +19,7 @@ async function getCourierId(userId: string): Promise<string | null> {
     .from("couriers")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   return (data as Pick<CourierRow, "id"> | null)?.id ?? null;
 }
 
