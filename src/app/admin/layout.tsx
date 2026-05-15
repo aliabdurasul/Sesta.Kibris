@@ -15,7 +15,23 @@ export default async function AdminLayout({
     <div className="flex min-h-screen flex-col bg-gray-50">
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
         <div className="flex items-center justify-between">
-          <h1 className="font-bold text-gray-900">SestaKıbrıs Admin</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="font-bold text-gray-900">SestaKıbrıs Admin</h1>
+            <nav className="hidden items-center gap-3 sm:flex">
+              <a
+                href="/admin"
+                className="text-sm text-gray-500 hover:text-gray-800"
+              >
+                Siparişler
+              </a>
+              <a
+                href="/admin/actors"
+                className="text-sm text-gray-500 hover:text-gray-800"
+              >
+                Aktörler
+              </a>
+            </nav>
+          </div>
           <form action="/auth/signout" method="post">
             <button
               type="submit"
