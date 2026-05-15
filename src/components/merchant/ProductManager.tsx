@@ -168,7 +168,7 @@ function AddProductForm({ merchantId, onAdded, onCancel }: AddProductFormProps) 
         is_available: true,
       })
       .select("id, name, price, category, description, is_available")
-      .single();
+      .maybeSingle();
 
     if (insertError || !data) {
       setError("Ürün eklenemedi.");

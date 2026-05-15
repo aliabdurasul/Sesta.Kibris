@@ -83,10 +83,14 @@ export async function createMerchantAction(
       is_open: true,
     } as any)
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (merchantError) {
     return { error: `İşletme oluşturulamadı: ${merchantError.message}` };
+  }
+
+  if (!merchantData) {
+    return { error: "İşletme oluşturuldu ancak kayıt doğrulanamadı." };
   }
 
   const merchantId = (merchantData as { id: string }).id;

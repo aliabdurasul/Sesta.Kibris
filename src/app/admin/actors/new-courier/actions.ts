@@ -73,10 +73,14 @@ export async function createCourierAction(
       is_available: true,
     } as any)
     .select("id")
-    .single();
+    .maybeSingle();
 
   if (courierError) {
     return { error: `Kurye oluşturulamadı: ${courierError.message}` };
+  }
+
+  if (!courierData) {
+    return { error: "Kurye oluşturuldu ancak kayıt doğrulanamadı." };
   }
 
   const courierId = (courierData as { id: string }).id;

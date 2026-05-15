@@ -17,7 +17,7 @@ async function getMerchantProducts(userId: string) {
     .from("merchants")
     .select("id")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   const merchant = merchantData as Pick<MerchantRow, "id"> | null;
   if (!merchant) return { merchantId: null, products: [] };

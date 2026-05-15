@@ -1,5 +1,5 @@
 /**
- * Next.js Proxy (Middleware) — runs on every request before rendering.
+ * Next.js Middleware — runs on every request before rendering.
  *
  * Responsibilities:
  *   1. Refresh Supabase session cookies (prevents premature token expiry)
@@ -14,7 +14,7 @@
  *   - /checkout is allowed through (auth check happens server-side)
  *   - /api/* routes are ALWAYS skipped
  *   - Static files are ALWAYS skipped
- *   - /auth/role-recovery is ALWAYS allowed through
+ *   - /staff is NOT linked in customer UI (internal ops route)
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
@@ -34,14 +34,17 @@ const PUBLIC_PREFIXES = [
   "/auth",        // all auth pages (login, register, signout, role-recovery)
   "/merchants",   // public storefront
   "/checkout",    // auth check handled server-side in page
+  "/staff",       // internal ops — not customer-facing, no redirect loop
+  "/offline",     // PWA offline fallback
 ];
 
 function isPublicPath(pathname: string): boolean {
+  if (pathname === "/") return true;
   if (pathname.includes(".")) return true; // static files (favicon, images, etc.)
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-export async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── 1. Always pass through public paths ──────────────────────────────────
