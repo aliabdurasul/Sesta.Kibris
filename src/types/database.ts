@@ -189,6 +189,20 @@ export interface Database {
         };
         Update: never;
       };
+      cron_lock: {
+        Row: {
+          job_name: string;
+          last_run_at: string;
+          last_run_by: string | null;
+          last_cancelled: number;
+          last_scanned: number;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["cron_lock"]["Row"]> & {
+          job_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["cron_lock"]["Row"]>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

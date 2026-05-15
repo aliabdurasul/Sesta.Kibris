@@ -1,9 +1,3 @@
 {
-  "installCommand": "npm install --legacy-peer-deps",
-  "crons": [
-    {
-      "path": "/api/cron/check-timeouts",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  "installCommand": "npm install --legacy-peer-deps"
 }
