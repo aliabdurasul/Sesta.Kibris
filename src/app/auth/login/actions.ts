@@ -1,13 +1,18 @@
-/**
- * Server Action: Sign in with email + password.
- * Supabase sets the session cookie server-side.
- * After sign-in, redirects to role-appropriate home.
- */
 "use server";
 
+/**
+ * Server Action: Sign in with email + password.
+ *
+ * Role resolution:
+ *   1. Try app_metadata.role (JWT — instant)
+ *   2. Fall back to DB lookup (customers / merchants / couriers tables)
+ *   3. If still no role → redirect to /auth/role-recovery (never hard-error)
+ *
+ * Never returns "Hesap rolü tanımlanmamış" — always resolves or recovers.
+ */
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { getRoleHomePath, type UserRole } from "@/lib/auth";
+import { resolveUserRole, getRoleHomePath } from "@/lib/auth";
 
 type ActionState = { error: string } | null;
 
@@ -33,16 +38,13 @@ export async function loginAction(
     return { error: "E-posta veya şifre hatalı." };
   }
 
-  const role = (
-    data.user.app_metadata as Record<string, string> | undefined
-  )?.["role"] as UserRole | undefined;
+  const meta = data.user.app_metadata as Record<string, string> | undefined;
+  const resolved = await resolveUserRole(data.user.id, meta);
 
-  if (!role) {
-    return {
-      error:
-        "Hesap rolü tanımlanmamış. Lütfen destek ekibiyle iletişime geçin.",
-    };
+  // No role found in JWT or DB → go to recovery page, not an error
+  if (!resolved) {
+    redirect("/auth/role-recovery");
   }
 
-  redirect(getRoleHomePath(role));
+  redirect(getRoleHomePath(resolved.role));
 }

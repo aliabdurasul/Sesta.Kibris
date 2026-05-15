@@ -1,10 +1,16 @@
 /**
  * Auth utilities for server components, layouts, and Server Actions.
- * Centralizes session access and role checks.
+ * Centralizes session access, role resolution, and route protection.
  * NEVER import this in client components.
+ *
+ * Role resolution order:
+ *   1. user.app_metadata.role  (JWT — fastest, set by admin)
+ *   2. customers table          (fallback for users registered before role was set)
+ *   3. merchants table
+ *   4. couriers table
+ *   5. null → redirect to /auth/role-recovery
  */
 import { redirect } from "next/navigation";
-
 import { createServerClient } from "@/lib/supabase/server";
 
 export type UserRole = "customer" | "merchant" | "courier" | "admin";
@@ -17,9 +23,81 @@ export interface SessionUser {
   courierId?: string;
 }
 
+// ─── Role resolution ──────────────────────────────────────────────────────────
+
 /**
- * Returns the current authenticated user with typed role from app_metadata.
- * Returns null if no session.
+ * Resolves the role for a given auth user ID.
+ *
+ * Checks app_metadata first (O(1), no DB hit).
+ * Falls back to DB lookup when app_metadata.role is absent.
+ * Returns null if the user has no role record anywhere.
+ */
+export async function resolveUserRole(
+  userId: string,
+  appMeta: Record<string, string> | undefined,
+): Promise<{ role: UserRole; merchantId?: string; courierId?: string } | null> {
+  // ── 1. Fast path: JWT metadata ───────────────────────────────────────────
+  const metaRole = appMeta?.["role"] as UserRole | undefined;
+  if (metaRole) {
+    return {
+      role: metaRole,
+      merchantId: appMeta?.["merchant_id"],
+      courierId: appMeta?.["courier_id"],
+    };
+  }
+
+  // ── 2. Slow path: DB lookup ───────────────────────────────────────────────
+  const supabase = await createServerClient();
+
+  // Check customers
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (customer) {
+    return { role: "customer" };
+  }
+
+  // Check merchants
+  const { data: merchant } = await supabase
+    .from("merchants")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (merchant) {
+    return {
+      role: "merchant",
+      merchantId: (merchant as { id: string }).id,
+    };
+  }
+
+  // Check couriers
+  const { data: courier } = await supabase
+    .from("couriers")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (courier) {
+    return {
+      role: "courier",
+      courierId: (courier as { id: string }).id,
+    };
+  }
+
+  // No role found anywhere
+  return null;
+}
+
+// ─── Session helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Returns the current authenticated user with resolved role.
+ * Uses DB fallback if app_metadata.role is missing.
+ * Returns null if no session OR no role can be determined.
  */
 export async function getSession(): Promise<SessionUser | null> {
   const supabase = await createServerClient();
@@ -31,56 +109,75 @@ export async function getSession(): Promise<SessionUser | null> {
   if (error || !user) return null;
 
   const meta = user.app_metadata as Record<string, string> | undefined;
-  const role = meta?.["role"] as UserRole | undefined;
+  const resolved = await resolveUserRole(user.id, meta);
 
-  if (!role) return null;
+  if (!resolved) return null;
 
   return {
     id: user.id,
     email: user.email ?? "",
-    role,
-    merchantId: meta?.["merchant_id"],
-    courierId: meta?.["courier_id"],
+    role: resolved.role,
+    merchantId: resolved.merchantId,
+    courierId: resolved.courierId,
   };
 }
 
 /**
  * Returns session or redirects to /auth/login.
- * Use in protected server components and layouts.
+ * Never crashes — always redirects safely.
  */
 export async function requireSession(redirectTo?: string): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
-    const params = redirectTo ? `?redirectTo=${encodeURIComponent(redirectTo)}` : "";
+    const params = redirectTo
+      ? `?redirectTo=${encodeURIComponent(redirectTo)}`
+      : "";
     redirect(`/auth/login${params}`);
   }
   return session;
 }
 
 /**
- * Returns session only if role matches. Otherwise redirects to correct dashboard.
+ * Returns session only if role matches.
+ * Redirects role mismatch to the correct dashboard.
+ * Redirects no-role users to /auth/role-recovery (never loops).
  */
 export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
-  const session = await requireSession();
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
-  if (session.role !== allowedRole) {
-    switch (session.role) {
-      case "merchant":
-        redirect("/merchant");
-      case "courier":
-        redirect("/courier");
-      case "admin":
-        redirect("/admin");
-      default:
-        redirect("/customer/orders");
-    }
+  // No session → login
+  if (error || !user) {
+    redirect("/auth/login");
   }
 
-  return session;
+  const meta = user.app_metadata as Record<string, string> | undefined;
+  const resolved = await resolveUserRole(user.id, meta);
+
+  // Authenticated but no role anywhere → recovery page (not login loop)
+  if (!resolved) {
+    redirect("/auth/role-recovery");
+  }
+
+  // Wrong role → correct dashboard
+  if (resolved.role !== allowedRole) {
+    redirect(getRoleHomePath(resolved.role));
+  }
+
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    role: resolved.role,
+    merchantId: resolved.merchantId,
+    courierId: resolved.courierId,
+  };
 }
 
 /**
- * Redirect map: role → home route
+ * Role → home route mapping.
  */
 export function getRoleHomePath(role: UserRole): string {
   switch (role) {
@@ -96,7 +193,7 @@ export function getRoleHomePath(role: UserRole): string {
 }
 
 /**
- * Signs out the current user. Use in Server Actions.
+ * Signs out the current user.
  */
 export async function signOut(): Promise<void> {
   const supabase = await createServerClient();

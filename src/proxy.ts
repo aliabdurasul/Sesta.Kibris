@@ -1,19 +1,25 @@
 /**
- * Next.js Proxy (formerly Middleware) — runs on every request before rendering.
+ * Next.js Proxy (Middleware) — runs on every request before rendering.
  *
  * Responsibilities:
- * 1. Refresh Supabase session cookies (prevents premature token expiry)
- * 2. Enforce role-based route protection
- * 3. Redirect unauthenticated users to /auth/login
- * 4. Redirect role mismatches to their correct dashboard
+ *   1. Refresh Supabase session cookies (prevents premature token expiry)
+ *   2. Enforce role-based route protection
+ *   3. Redirect unauthenticated users to /auth/login
+ *   4. Redirect role mismatches to their correct dashboard
+ *   5. Redirect users with no role to /auth/role-recovery (no loop)
  *
- * Per AUTH_AND_ROLES.md section 4 and PHASE_0_SETUP.md.
+ * Loop-prevention rules:
+ *   - /auth/* routes are ALWAYS allowed through (no redirect)
+ *   - /merchants/* routes are ALWAYS allowed through (public storefront)
+ *   - /checkout is allowed through (auth check happens server-side)
+ *   - /api/* routes are ALWAYS skipped
+ *   - Static files are ALWAYS skipped
+ *   - /auth/role-recovery is ALWAYS allowed through
  */
 import { NextResponse, type NextRequest } from "next/server";
-
 import { updateSession } from "@/lib/supabase/middleware";
 
-// Route → required role mapping
+// Routes requiring a specific role
 const PROTECTED_ROUTES: Record<string, string> = {
   "/merchant": "merchant",
   "/courier": "courier",
@@ -21,29 +27,42 @@ const PROTECTED_ROUTES: Record<string, string> = {
   "/customer": "customer",
 };
 
+// Routes that are ALWAYS public — never redirect, never require auth
+const PUBLIC_PREFIXES = [
+  "/_next",
+  "/api",
+  "/auth",        // all auth pages (login, register, signout, role-recovery)
+  "/merchants",   // public storefront
+  "/checkout",    // auth check handled server-side in page
+];
+
+function isPublicPath(pathname: string): boolean {
+  if (pathname.includes(".")) return true; // static files (favicon, images, etc.)
+  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip for Next.js internals and static files
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.includes(".")
-  ) {
+  // ── 1. Always pass through public paths ──────────────────────────────────
+  if (isPublicPath(pathname)) {
+    // Still refresh the session cookie so Supabase doesn't expire
+    const result = await updateSession(request);
+    if (result instanceof NextResponse) return result;
+    if ("response" in result) return result.response;
     return NextResponse.next();
   }
 
-  // Refresh the session and get current user
+  // ── 2. Refresh session and get user ──────────────────────────────────────
   const result = await updateSession(request);
 
-  // If updateSession returned early (missing env vars in dev), pass through
   if (result instanceof NextResponse || !("user" in result)) {
     return result instanceof NextResponse ? result : NextResponse.next();
   }
 
   const { response, user } = result;
 
-  // Determine if this is a protected route
+  // ── 3. Check if this is a protected route ────────────────────────────────
   const protectedPrefix = Object.keys(PROTECTED_ROUTES).find((prefix) =>
     pathname.startsWith(prefix),
   );
@@ -53,9 +72,9 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  const requiredRole = PROTECTED_ROUTES[protectedPrefix];
+  const requiredRole = PROTECTED_ROUTES[protectedPrefix]!;
 
-  // Not authenticated — redirect to login
+  // ── 4. Not authenticated → login (with return URL) ───────────────────────
   if (!user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/auth/login";
@@ -63,35 +82,48 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Get role from JWT app_metadata (server-authoritative — never trust client)
+  // ── 5. Get role from JWT app_metadata ────────────────────────────────────
+  // NOTE: DB fallback only runs in server components / actions, not here.
+  // Middleware reads the JWT claim only (no DB calls in middleware = fast).
+  // If role is missing in JWT, redirect to role-recovery.
   const userRole =
-    (user.app_metadata as Record<string, string> | undefined)?.["role"] ?? null;
+    (user.app_metadata as Record<string, string> | undefined)?.["role"] ??
+    null;
 
-  // Role mismatch — redirect to their correct dashboard
+  if (!userRole) {
+    // Authenticated but no role in JWT — send to recovery, not login (avoids loop)
+    const recoveryUrl = request.nextUrl.clone();
+    recoveryUrl.pathname = "/auth/role-recovery";
+    recoveryUrl.search = "";
+    return NextResponse.redirect(recoveryUrl);
+  }
+
+  // ── 6. Role mismatch → correct dashboard ─────────────────────────────────
   if (userRole !== requiredRole) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.searchParams.delete("redirectTo");
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.search = "";
 
     switch (userRole) {
       case "merchant":
-        redirectUrl.pathname = "/merchant";
+        dashboardUrl.pathname = "/merchant";
         break;
       case "courier":
-        redirectUrl.pathname = "/courier";
+        dashboardUrl.pathname = "/courier";
         break;
       case "admin":
-        redirectUrl.pathname = "/admin";
+        dashboardUrl.pathname = "/admin";
         break;
       case "customer":
-        redirectUrl.pathname = "/customer/orders";
+        dashboardUrl.pathname = "/customer/orders";
         break;
       default:
-        redirectUrl.pathname = "/auth/login";
+        dashboardUrl.pathname = "/auth/role-recovery";
     }
 
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(dashboardUrl);
   }
 
+  // ── 7. All checks passed — allow through ─────────────────────────────────
   return response;
 }
 
