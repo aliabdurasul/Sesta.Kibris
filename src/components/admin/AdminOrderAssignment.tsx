@@ -2,10 +2,14 @@
 
 /**
  * Admin courier assignment component.
- * Assigns available courier to READY orders.
+ * Assigns available courier to READY orders via the transition-order Edge Function.
  * Also shows all active orders with status.
+ *
+ * IMPORTANT: Assignment MUST go through the Edge Function — never direct DB writes.
+ * This ensures order_status_log is appended and the state machine is enforced.
  */
 import { useState } from "react";
+import { createBrowserClient } from "@/lib/supabase/client";
 import type { OrderStatus } from "@/types/database";
 
 interface Order {
@@ -38,6 +42,39 @@ const STATUS_COLORS: Record<string, string> = {
   IN_TRANSIT: "bg-purple-100 text-purple-800",
 };
 
+async function assignCourierViaEdgeFunction(
+  orderId: string,
+  courierId: string,
+): Promise<void> {
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+
+  if (!supabaseUrl || !anonKey) throw new Error("Yapılandırma hatası.");
+
+  const supabase = createBrowserClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      order_id: orderId,
+      new_status: "ASSIGNED",
+      courier_id: courierId,
+    }),
+  });
+
+  const data = (await res.json()) as { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "Kurye atanamadı.");
+}
+
 export function AdminOrderAssignment({
   orders: initialOrders,
   couriers,
@@ -53,27 +90,18 @@ export function AdminOrderAssignment({
     setLoadingId(orderId);
     setError(null);
 
-    const supabase = await import("@/lib/supabase/client").then((m) =>
-      m.createBrowserClient(),
-    );
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase as any)
-      .from("orders")
-      .update({ courier_id: courierId, status: "ASSIGNED" })
-      .eq("id", orderId)
-      .eq("status", "READY");
-
-    if (updateError) {
-      setError("Kurye atanamadı: " + updateError.message);
-    } else {
+    try {
+      await assignCourierViaEdgeFunction(orderId, courierId);
       setOrders((prev) =>
         prev.map((o) =>
           o.id === orderId ? { ...o, status: "ASSIGNED" as OrderStatus } : o,
         ),
       );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kurye atanamadı.");
+    } finally {
+      setLoadingId(null);
     }
-    setLoadingId(null);
   };
 
   if (orders.length === 0) {
@@ -103,7 +131,7 @@ export function AdminOrderAssignment({
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-gray-900">
-                {order.merchants?.name ?? "Restoran"}
+                {order.merchants?.name ?? "Market"}
               </p>
               <p className="text-xs text-gray-400">
                 #{order.id.slice(-8).toUpperCase()} ·{" "}
@@ -138,7 +166,7 @@ export function AdminOrderAssignment({
                   const sel = document.getElementById(
                     `courier-${order.id}`,
                   ) as HTMLSelectElement;
-                  if (sel.value) assignCourier(order.id, sel.value);
+                  if (sel.value) void assignCourier(order.id, sel.value);
                 }}
                 disabled={loadingId === order.id}
                 className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"

@@ -43,9 +43,7 @@ export default async function MerchantProductsPage() {
 
   if (!merchantId) {
     return (
-      <div className="py-16 text-center text-gray-400">
-        Restoran kaydınız bulunamadı.
-      </div>
+        Market kaydınız bulunamadı.
     );
   }
 

@@ -117,7 +117,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
       {/* Items */}
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
         <h3 className="mb-3 font-semibold text-gray-900">
-          {order.merchants?.name ?? "Restoran"}
+          {order.merchants?.name ?? "Market"}
         </h3>
         <ul className="space-y-2">
           {order.order_items.map((item) => {

@@ -82,7 +82,7 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
           href="/merchants"
           className="mt-4 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
         >
-          Restoranlar&apos;a dön
+          Marketlere dön
         </a>
       </div>
     );
@@ -109,6 +109,16 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
         throw new Error("Yapılandırma hatası.");
       }
 
+      // Get the user's real session JWT — anon key is NOT a valid user token
+      const { createBrowserClient } = await import("@/lib/supabase/client");
+      const supabase = createBrowserClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+      }
+
       const body = {
         merchant_id: merchantId,
         items: items.map((i) => ({
@@ -122,15 +132,13 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
         notes: data.notes ?? null,
       };
 
-      // Auth token from cookie is sent automatically by browser
       const res = await fetch(`${supabaseUrl}/functions/v1/create-order`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
+          Authorization: `Bearer ${accessToken}`,
         },
-        credentials: "include",
         body: JSON.stringify(body),
       });
 

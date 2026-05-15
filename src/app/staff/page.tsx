@@ -49,7 +49,7 @@ export default async function StaffPage() {
             <div>
               <p className="font-semibold text-white">İşletme Girişi</p>
               <p className="text-xs text-gray-400">
-                Restoran sahibi / müdür girişi
+              Market sahibi / müdür girişi
               </p>
             </div>
           </Link>

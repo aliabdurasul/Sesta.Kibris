@@ -68,7 +68,7 @@ export default async function CourierDashboard() {
           </span>
         )}
       </h2>
-      <CourierDeliveryQueue initialOrders={orders} />
+      <CourierDeliveryQueue initialOrders={orders} courierId={courierId} />
     </div>
   );
 }

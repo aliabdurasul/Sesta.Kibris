@@ -104,12 +104,16 @@ Deno.serve(async (req: Request) => {
     // 5. Fetch merchant
     const { data: merchant, error: merchantError } = await admin
       .from("merchants")
-      .select("id, minimum_order_amount, is_active")
+      .select("id, minimum_order_amount, is_active, is_open")
       .eq("id", merchant_id)
       .single();
 
     if (merchantError || !merchant || !merchant.is_active) {
-      return json({ error: "Restoran bulunamadı veya aktif değil." }, 404);
+      return json({ error: "Market bulunamadı veya aktif değil." }, 404);
+    }
+
+    if (!merchant.is_open) {
+      return json({ error: "Bu market şu an siparişe kapalı." }, 400);
     }
 
     // 6. Fetch and validate products — re-fetch from DB, never trust client prices

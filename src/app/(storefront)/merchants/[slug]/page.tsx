@@ -104,7 +104,7 @@ export async function generateMetadata({ params }: PageProps) {
   return {
     title: data
       ? `${data.merchant.name} — SestaKıbrıs`
-      : "Restoran bulunamadı",
+      : "Market bulunamadı",
   };
 }
 
@@ -156,14 +156,14 @@ export default async function MerchantDetailPage({ params }: PageProps) {
         </div>
         {!merchant.is_open && (
           <div className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700 ring-1 ring-amber-200">
-            Bu restoran şu an siparişe kapalı. Menüyü inceleyebilirsiniz.
+            Bu market şu an siparişe kapalı. Menüyü inceleyebilirsiniz.
           </div>
         )}
       </div>
 
       {products.length === 0 ? (
         <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
-          <p>Bu restoranın şu an aktif ürünü bulunmuyor.</p>
+          <p>Bu marketin şu an aktif ürünü bulunmuyor.</p>
         </div>
       ) : (
         <ProductGrid

@@ -51,10 +51,10 @@ export default async function MerchantLayout({
         <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
           <div className="mb-4 text-4xl">🏪</div>
           <h1 className="text-xl font-bold text-gray-900">
-            Restoran Kaydınız Bulunamadı
+            Market Kaydınız Bulunamadı
           </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Hesabınız aktif, ancak restoran kaydı henüz oluşturulmamış. Lütfen
+            Hesabınız aktif, ancak market kaydı henüz oluşturulmamış. Lütfen
             yöneticinizle iletişime geçin.
           </p>
           <p className="mt-1 text-xs text-gray-400">{session.email}</p>
@@ -80,7 +80,7 @@ export default async function MerchantLayout({
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-gray-400">Restoran Paneli</p>
+            <p className="text-xs text-gray-400">Market Paneli</p>
             <h1 className="font-bold text-gray-900">{merchant.name}</h1>
           </div>
           <span

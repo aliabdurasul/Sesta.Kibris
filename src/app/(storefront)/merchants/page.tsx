@@ -9,7 +9,7 @@ import { MerchantCard } from "@/components/merchant/MerchantCard";
 import { log } from "@/lib/logger";
 
 export const metadata = {
-  title: "Restoranlar — SestaKıbrıs",
+  title: "Marketler — SestaKıbrıs",
 };
 
 import type { Database } from "@/types/database";
@@ -58,18 +58,18 @@ export default async function MerchantsPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-bold text-gray-900">Restoranlar</h1>
+      <h1 className="mb-4 text-xl font-bold text-gray-900">Marketler</h1>
 
       {error && (
         <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
-          Restoranlar şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.
+          Marketler şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.
         </div>
       )}
 
       {merchants.length === 0 ? (
         <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
-          <p className="text-lg">Henüz aktif restoran bulunmuyor.</p>
-          <p className="mt-1 text-sm">Yakında yeni restoranlar eklenecek.</p>
+          <p className="text-lg">Henüz aktif market bulunmuyor.</p>
+          <p className="mt-1 text-sm">Yakında yeni marketler eklenecek.</p>
         </div>
       ) : (
         <div className="space-y-3">

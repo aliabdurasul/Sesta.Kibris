@@ -47,7 +47,7 @@ export default async function MerchantDashboard() {
   if (!merchantId) {
     return (
       <div className="py-16 text-center text-gray-400">
-        <p>Restoran kaydınız bulunamadı.</p>
+        <p>Market kaydınız bulunamadı.</p>
       </div>
     );
   }

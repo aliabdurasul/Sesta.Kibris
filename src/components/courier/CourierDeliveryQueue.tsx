@@ -2,12 +2,13 @@
 
 /**
  * Courier delivery queue.
- * Shows ASSIGNED and IN_TRANSIT orders.
+ * Shows ASSIGNED and IN_TRANSIT orders with realtime updates.
  * Pickup confirmation: ASSIGNED → IN_TRANSIT
  * Delivery confirmation: IN_TRANSIT → DELIVERED
  * Failure reporting: IN_TRANSIT → FAILED_DELIVERY
  */
 import { useState } from "react";
+import { useCourierSubscription } from "@/hooks/useCourierSubscription";
 import type { Json, OrderStatus } from "@/types/database";
 
 interface OrderMerchant {
@@ -42,14 +43,21 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
+  // Must use the user's session access_token, not the anon key.
+  const { createBrowserClient } = await import("@/lib/supabase/client");
+  const supabase = createBrowserClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
+
   const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: anonKey!,
-      Authorization: `Bearer ${anonKey}`,
+      Authorization: `Bearer ${accessToken}`,
     },
-    credentials: "include",
     body: JSON.stringify({ order_id: orderId, new_status: newStatus, note }),
   });
 
@@ -57,8 +65,35 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
   if (!res.ok) throw new Error(data.error ?? "İşlem başarısız.");
 }
 
-export function CourierDeliveryQueue({ initialOrders }: { initialOrders: Order[] }) {
-  const [orders, setOrders] = useState(initialOrders);
+type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error";
+
+function ConnectionDot({ status }: { status: ConnectionStatus }) {
+  const config = {
+    connecting:  { color: "bg-yellow-400", label: "Bağlanıyor..." },
+    connected:   { color: "bg-green-500",  label: "Canlı" },
+    reconnecting:{ color: "bg-yellow-500", label: "Yeniden bağlanıyor..." },
+    error:       { color: "bg-red-500",    label: "Bağlantı kesildi" },
+  }[status];
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <span className={`h-2 w-2 rounded-full ${config.color}`} />
+      {config.label}
+    </div>
+  );
+}
+
+export function CourierDeliveryQueue({
+  initialOrders,
+  courierId,
+}: {
+  initialOrders: Order[];
+  courierId: string;
+}) {
+  const { orders, setOrders, connectionStatus } = useCourierSubscription({
+    courierId,
+    initialOrders,
+  });
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,15 +124,19 @@ export function CourierDeliveryQueue({ initialOrders }: { initialOrders: Order[]
 
   if (orders.length === 0) {
     return (
-      <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
-        <p className="text-lg">Atanan teslimat yok.</p>
-        <p className="mt-1 text-sm">Hazır siparişler size atandığında burada görünecek.</p>
+      <div className="space-y-3">
+        <ConnectionDot status={connectionStatus} />
+        <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
+          <p className="text-lg">Atanan teslimat yok.</p>
+          <p className="mt-1 text-sm">Hazır siparişler size atandığında burada görünecek.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <ConnectionDot status={connectionStatus} />
       {error && (
         <div
           role="alert"

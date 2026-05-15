@@ -74,7 +74,7 @@ export default async function CustomerOrdersPage() {
             href="/merchants"
             className="mt-4 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
           >
-            Restoranları keşfet
+            Marketleri keşfet
           </Link>
         </div>
       ) : (
@@ -87,7 +87,7 @@ export default async function CustomerOrdersPage() {
             >
               <div>
                 <p className="font-semibold text-gray-900">
-                  {order.merchants?.name ?? "Restoran"}
+                  {order.merchants?.name ?? "Market"}
                 </p>
                 <p className="text-xs text-gray-400">
                   {new Date(order.created_at).toLocaleString("tr-TR", {
