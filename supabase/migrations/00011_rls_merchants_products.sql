@@ -8,6 +8,11 @@
 
 ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (idempotent migration)
+DROP POLICY IF EXISTS merchants_select_public ON merchants;
+DROP POLICY IF EXISTS merchants_select_own ON merchants;
+DROP POLICY IF EXISTS merchants_update_own ON merchants;
+
 -- Public can read active merchants (for storefront listing)
 CREATE POLICY merchants_select_public ON merchants
   FOR SELECT
@@ -32,6 +37,12 @@ CREATE POLICY merchants_update_own ON merchants
 -- ============================================================
 
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS products_select_public ON products;
+DROP POLICY IF EXISTS products_select_merchant ON products;
+DROP POLICY IF EXISTS products_insert_merchant ON products;
+DROP POLICY IF EXISTS products_update_merchant ON products;
 
 -- Public can read available products from any merchant
 CREATE POLICY products_select_public ON products

@@ -8,6 +8,11 @@
 
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (idempotent migration)
+DROP POLICY IF EXISTS customers_select_own ON customers;
+DROP POLICY IF EXISTS customers_insert_own ON customers;
+DROP POLICY IF EXISTS customers_update_own ON customers;
+
 CREATE POLICY customers_select_own ON customers
   FOR SELECT
   USING (id = auth.uid());
@@ -28,6 +33,12 @@ CREATE POLICY customers_update_own ON customers
 -- ============================================================
 
 ALTER TABLE customer_addresses ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS addresses_select_own ON customer_addresses;
+DROP POLICY IF EXISTS addresses_insert_own ON customer_addresses;
+DROP POLICY IF EXISTS addresses_update_own ON customer_addresses;
+DROP POLICY IF EXISTS addresses_delete_own ON customer_addresses;
 
 CREATE POLICY addresses_select_own ON customer_addresses
   FOR SELECT
@@ -51,6 +62,11 @@ CREATE POLICY addresses_delete_own ON customer_addresses
 -- ============================================================
 
 ALTER TABLE couriers ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS couriers_select_merchant ON couriers;
+DROP POLICY IF EXISTS couriers_select_own ON couriers;
+DROP POLICY IF EXISTS couriers_update_merchant ON couriers;
 
 -- Merchant can see all couriers belonging to them
 CREATE POLICY couriers_select_merchant ON couriers

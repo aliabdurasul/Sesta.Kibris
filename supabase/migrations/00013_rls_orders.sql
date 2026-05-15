@@ -9,6 +9,11 @@
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (idempotent migration)
+DROP POLICY IF EXISTS orders_select_customer ON orders;
+DROP POLICY IF EXISTS orders_select_merchant ON orders;
+DROP POLICY IF EXISTS orders_select_courier ON orders;
+
 -- Customer sees only their own orders
 CREATE POLICY orders_select_customer ON orders
   FOR SELECT
@@ -33,6 +38,11 @@ CREATE POLICY orders_select_courier ON orders
 -- ============================================================
 
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS order_items_select_customer ON order_items;
+DROP POLICY IF EXISTS order_items_select_merchant ON order_items;
+DROP POLICY IF EXISTS order_items_select_courier ON order_items;
 
 -- Customer can see items on their orders
 CREATE POLICY order_items_select_customer ON order_items
@@ -74,6 +84,10 @@ CREATE POLICY order_items_select_courier ON order_items
 -- ============================================================
 
 ALTER TABLE order_status_log ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS status_log_select_customer ON order_status_log;
+DROP POLICY IF EXISTS status_log_select_merchant ON order_status_log;
 
 -- Customer can see the log for their orders
 CREATE POLICY status_log_select_customer ON order_status_log
