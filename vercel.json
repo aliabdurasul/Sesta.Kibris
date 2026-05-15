@@ -2,6 +2,5 @@
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
   "buildCommand": "pnpm build",
   "framework": "nextjs",
-  "outputDirectory": ".next",
-  "nodeVersion": "22.x"
+  "outputDirectory": ".next"
 }
