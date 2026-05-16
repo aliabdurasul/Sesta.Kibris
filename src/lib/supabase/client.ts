@@ -19,5 +19,10 @@ export function createBrowserClient() {
     );
   }
 
-  return createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+  return createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      detectSessionInUrl: true,
+      flowType: "pkce",
+    },
+  });
 }

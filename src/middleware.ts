@@ -18,6 +18,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { userMustChangePassword } from "@/lib/auth/password-change";
 
 // Routes requiring a specific role
 const PROTECTED_ROUTES: Record<string, string> = {
@@ -93,6 +94,18 @@ export default async function middleware(request: NextRequest) {
   const userRole =
     (user.app_metadata as Record<string, string> | undefined)?.["role"] ??
     null;
+
+  // ── 5b. Admin must finish bootstrap password change before /admin ─────────
+  if (
+    userRole === "admin" &&
+    userMustChangePassword(user) &&
+    pathname.startsWith("/admin")
+  ) {
+    const setupUrl = request.nextUrl.clone();
+    setupUrl.pathname = "/auth/setup-password";
+    setupUrl.search = "";
+    return NextResponse.redirect(setupUrl);
+  }
 
   if (!userRole) {
     // Authenticated but no role in JWT — send to recovery, not login (avoids loop)

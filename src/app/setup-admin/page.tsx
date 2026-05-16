@@ -8,7 +8,7 @@
  *   1. Server checks for existing admins (service role — no JWT required)
  *   2. If admin exists → redirect to /auth/login (bootstrap complete)
  *   3. If no admin → render SetupAdminForm
- *   4. SetupAdminForm invites the email via Supabase (admin sets own password)
+ *   4. SetupAdminForm creates admin via Auth Admin API + one-time temp password (no invite email)
  *
  * SECURITY:
  *   - Admin existence check is server-side only (service role)

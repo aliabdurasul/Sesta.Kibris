@@ -19,7 +19,7 @@
  */
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { resolveUserRole, getRoleHomePath } from "@/lib/auth";
+import { resolveUserRole, getRoleHomePath, userMustChangePassword } from "@/lib/auth";
 import { log } from "@/lib/logger";
 
 type ActionState = { error: string } | null;
@@ -55,8 +55,15 @@ export async function loginAction(
     return { error: "E-posta veya şifre hatalı." };
   }
 
-  const userId = data.user.id;
-  const meta = data.user.app_metadata as Record<string, string> | undefined;
+  const authUser = data.user;
+
+  if (userMustChangePassword(authUser)) {
+    log.info("login.password_change_required", { userId: authUser.id });
+    redirect("/auth/setup-password");
+  }
+
+  const userId = authUser.id;
+  const meta = authUser.app_metadata as Record<string, string> | undefined;
 
   const resolved = await resolveUserRole(userId, meta);
 

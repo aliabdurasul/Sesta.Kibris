@@ -1,8 +1,7 @@
 "use client";
 
 /**
- * Interactive form for the first-run admin setup wizard.
- * Separated into a Client Component so it can use useActionState.
+ * First-run admin setup wizard — deterministic bootstrap (no email invite).
  */
 import { useActionState } from "react";
 import { setupAdminAction, type SetupAdminState } from "./actions";
@@ -26,21 +25,40 @@ export function SetupAdminForm() {
       <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-100 text-center">
         <div className="mb-4 text-5xl">✅</div>
         <h2 className="text-xl font-bold text-gray-900">
-          Admin Hesabı Oluşturuldu
+          İlk Admin Hesabı Oluşturuldu
         </h2>
         <p className="mt-3 text-sm text-gray-600">
-          <span className="font-medium">{state.email}</span> adresine bir davet
-          e-postası gönderildi.
+          Hesap:{" "}
+          <span className="font-medium">{state.email}</span>
         </p>
-        <p className="mt-2 text-sm text-gray-500">
-          Admin, e-posta bağlantısını tıklayarak kendi şifresini oluşturacak ve
-          sisteme giriş yapacak.
-        </p>
+
+        <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-left text-sm text-amber-900 ring-1 ring-amber-200">
+          <p className="font-semibold">Tek seferlik geçici şifre</p>
+          <p className="mt-1 text-xs text-amber-800">
+            Bu şifre bir daha gösterilmez. Güvenli bir yere kopyalayın, ardından
+            giriş yapıp kalıcı şifrenizi belirleyin.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="flex-1 min-w-0 break-all rounded-lg bg-white px-3 py-2 text-xs ring-1 ring-amber-200">
+              {state.temporaryPassword}
+            </code>
+            <button
+              type="button"
+              onClick={() =>
+                void navigator.clipboard.writeText(state.temporaryPassword)
+              }
+              className="rounded-lg bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
+            >
+              Kopyala
+            </button>
+          </div>
+        </div>
+
         <a
           href="/auth/login"
           className="mt-6 inline-block rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
         >
-          Giriş Sayfasına Git
+          Giriş Yap → Şifre Belirle
         </a>
       </div>
     );
@@ -52,8 +70,8 @@ export function SetupAdminForm() {
         İlk Admin Hesabı
       </h2>
       <p className="mb-6 text-sm text-gray-500">
-        E-posta adresini girin. Şifrelerini belirleyebilmeleri için bir davet
-        bağlantısı gönderilecek.
+        Platform yöneticisi için geçerli bir e-posta girin. Geçici şifre bir sonraki
+        adımda tek kez gösterilir; e-posta daveti kullanılmaz.
       </p>
 
       {state.status === "error" && (
@@ -90,13 +108,13 @@ export function SetupAdminForm() {
           disabled={isPending}
           className="w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isPending ? "Davet gönderiliyor..." : "Admin Hesabı Oluştur"}
+          {isPending ? "Oluşturuluyor..." : "Admin Hesabı Oluştur"}
         </button>
       </form>
 
       <p className="mt-4 text-xs text-gray-400">
-        Bu işlem yalnızca bir kez çalışır. Admin oluşturulduktan sonra bu sayfa
-        devre dışı kalır.
+        Bu işlem yalnızca tek bir admin yokken çalışır. İlk admin oluşturulduktan sonra
+        bu sayfa otomatik olarak kapanır.
       </p>
     </div>
   );

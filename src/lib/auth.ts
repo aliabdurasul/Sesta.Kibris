@@ -15,6 +15,8 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export type UserRole = "customer" | "merchant" | "courier" | "admin";
 
+export { userMustChangePassword } from "@/lib/auth/password-change";
+
 export interface SessionUser {
   id: string;
   email: string;

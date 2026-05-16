@@ -1,30 +1,29 @@
 "use server";
 
 /**
- * Server Action: Create the first platform admin via email invite.
+ * Server Action: Deterministic first-admin bootstrap (NO invite email).
  *
- * SECURITY MODEL:
- *   - Only executes when zero admins exist in the system.
- *   - Checks admin count before AND after the invite (TOCTOU double-check).
- *   - Uses Supabase inviteUserByEmail — admin sets their own password via email.
- *   - No plaintext passwords generated or stored.
- *   - Requires SUPABASE_SERVICE_ROLE_KEY — only runs server-side.
+ * FLOW:
+ *   1. Pre-check: zero users with app_metadata.role === "admin"
+ *   2. Create user via Admin API: email_confirm + role + password_change_required
+ *   3. Cryptographically secure one-time temporary password (shown once in UI only)
+ *   4. Post-check: exactly one admin exists
  *
- * AFTER FIRST ADMIN:
- *   - This action returns an error for all subsequent calls.
- *   - Bootstrap is permanently disabled once any admin exists.
- *   - Further admins must be created via the admin panel (future feature).
+ * SECURITY:
+ *   - Temporary password is never logged or persisted beyond the HTTP response to the operator
+ *   - Operator must log in and complete /auth/setup-password to clear the flag
+ *   - Service role key required — server-side only
  *
- * AUDIT:
- *   - Logs the creation event with timestamp and email (not password).
+ * IF admin already exists → error (TOCTOU also re-checked after create)
  */
+import { randomBytes } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
 export type SetupAdminState =
   | { status: "idle" }
-  | { status: "success"; email: string }
+  | { status: "success"; email: string; temporaryPassword: string }
   | { status: "error"; message: string };
 
 function createAdminClient() {
@@ -36,10 +35,6 @@ function createAdminClient() {
   });
 }
 
-/**
- * Returns the count of users with app_metadata.role = "admin".
- * Uses listUsers — safe for small Phase 1 user counts.
- */
 async function countAdmins(): Promise<number> {
   const admin = createAdminClient();
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
@@ -51,113 +46,75 @@ async function countAdmins(): Promise<number> {
   ).length;
 }
 
+/** One-time bootstrap password; not logged or stored server-side after return. */
+function generateTemporaryPassword(): string {
+  return randomBytes(24).toString("base64url");
+}
+
 export async function setupAdminAction(
   _prevState: SetupAdminState,
   formData: FormData,
 ): Promise<SetupAdminState> {
-  const email = (formData.get("email") as string | null)?.trim() ?? "";
+  const email = (formData.get("email") as string | null)?.trim().toLowerCase() ?? "";
 
   if (!email || !email.includes("@")) {
     return { status: "error", message: "Geçerli bir e-posta adresi girin." };
   }
 
   try {
-    // ── Pre-check: abort if admin already exists ───────────────────────────
-    const existingCount = await countAdmins();
-    if (existingCount > 0) {
-      log.warn("setup_admin.already_configured", { email });
+    const before = await countAdmins();
+    if (before > 0) {
+      log.warn("setup_admin.blocked_existing", { email });
       return {
         status: "error",
         message:
-          "Sistem zaten yapılandırılmış. Admin hesabı oluşturmak için mevcut admin ile iletişime geçin.",
+          "Sistem zaten yapılandırılmış. İlk admin oluşturulduktan sonra bu akış devre dışıdır.",
       };
     }
 
     const admin = createAdminClient();
+    const temporaryPassword = generateTemporaryPassword();
 
-    // ── Invite user (they set their own password via email link) ───────────
-    const { data: inviteData, error: inviteError } =
-      await admin.auth.admin.inviteUserByEmail(email);
+    const { data: created, error: createError } =
+      await admin.auth.admin.createUser({
+        email,
+        password: temporaryPassword,
+        email_confirm: true,
+        app_metadata: { role: "admin" },
+        user_metadata: { password_change_required: true },
+      });
 
-    if (inviteError) {
-      if (inviteError.message.toLowerCase().includes("already registered")) {
-        // User exists but has no admin role — elevate them
-        const { data: listData } = await admin.auth.admin.listUsers({
-          perPage: 1000,
-        });
-        const existingUser = listData?.users.find(
-          (u) => u.email?.toLowerCase() === email.toLowerCase(),
-        );
-
-        if (!existingUser) {
-          return { status: "error", message: "Kullanıcı bulunamadı." };
-        }
-
-        const existingRole = (
-          existingUser.app_metadata as Record<string, string> | undefined
-        )?.["role"];
-
-        if (existingRole && existingRole !== "") {
-          return {
-            status: "error",
-            message: `Bu hesap zaten "${existingRole}" rolüne sahip.`,
-          };
-        }
-
-        // No role — safe to elevate
-        await admin.auth.admin.updateUserById(existingUser.id, {
-          app_metadata: { role: "admin" },
-        });
-
-        log.info("setup_admin.elevated_existing", {
-          userId: existingUser.id,
-          email,
-        });
-
-        return { status: "success", email };
+    if (createError || !created.user) {
+      const msg = createError?.message ?? "Kullanıcı oluşturulamadı.";
+      if (msg.toLowerCase().includes("already")) {
+        return {
+          status: "error",
+          message:
+            "Bu e-posta ile zaten bir hesap var. İlk admin için yeni ve benzersiz bir e-posta kullanın.",
+        };
       }
+      log.error("setup_admin.create_failed", { email, reason: msg });
+      return { status: "error", message: `Admin oluşturulamadı: ${msg}` };
+    }
 
-      log.error("setup_admin.invite_failed", {
+    const userId = created.user.id;
+
+    const after = await countAdmins();
+    if (after !== 1) {
+      log.warn("setup_admin.unexpected_admin_count", {
+        userId,
         email,
-        reason: inviteError.message,
+        count: after,
       });
-      return {
-        status: "error",
-        message: `Davet gönderilemedi: ${inviteError.message}`,
-      };
     }
 
-    const newUserId = inviteData.user.id;
+    log.info("setup_admin.success", { userId, email });
 
-    // ── Set admin role on the new user ─────────────────────────────────────
-    const { error: updateError } = await admin.auth.admin.updateUserById(
-      newUserId,
-      { app_metadata: { role: "admin" } },
-    );
-
-    if (updateError) {
-      // Rollback: delete the invited user to avoid orphan without role
-      await admin.auth.admin.deleteUser(newUserId);
-      log.error("setup_admin.role_set_failed", {
-        userId: newUserId,
-        email,
-        reason: updateError.message,
-      });
-      return {
-        status: "error",
-        message: "Admin rolü atanamadı. Lütfen tekrar deneyin.",
-      };
-    }
-
-    // ── Post-check: confirm exactly one admin now exists ───────────────────
-    const finalCount = await countAdmins();
-    if (finalCount !== 1) {
-      log.warn("setup_admin.unexpected_count", { finalCount, email });
-    }
-
-    log.info("setup_admin.success", { userId: newUserId, email });
-
-    return { status: "success", email };
+    return {
+      status: "success",
+      email,
+      temporaryPassword,
+    };
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
     log.error("setup_admin.unexpected", { email, reason });
