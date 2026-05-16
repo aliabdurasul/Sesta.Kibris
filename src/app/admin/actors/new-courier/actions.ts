@@ -1,19 +1,11 @@
 "use server";
 
 /**
- * Server Action: Admin creates a new courier.
+ * Server Action: Admin creates a new courier (atomic).
  *
- * SECURITY: requireRole("admin") is called INSIDE the action.
- * UI protection alone is insufficient — Server Actions are directly invokable.
- *
- * Flow:
- *   1. Verify caller is admin
- *   2. Create auth user
- *   3. Create couriers row (merchant_id nullable — platform-level couriers)
- *   4. Set app_metadata.role = "courier" + courier_id
- *   5. Log the creation
- *
- * On failure after auth user creation → rollback (delete auth user).
+ * 1. Create auth user
+ * 2. Insert couriers row (merchant_id required)
+ * 3. Set app_metadata { role, courier_id, merchant_id }
  */
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -35,7 +27,6 @@ export async function createCourierAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  // ── SECURITY GATE ─────────────────────────────────────────────────────────
   const caller = await requireRole("admin");
 
   const email = (formData.get("email") as string | null)?.trim() ?? "";
@@ -43,9 +34,13 @@ export async function createCourierAction(
   const fullName = (formData.get("fullName") as string | null)?.trim() ?? "";
   const phone = (formData.get("phone") as string | null)?.trim() ?? "";
   const vehicle = (formData.get("vehicle") as string | null)?.trim() ?? "";
+  const merchantId = (formData.get("merchantId") as string | null)?.trim() ?? "";
 
-  if (!email || !password || !fullName) {
-    return { error: "E-posta, şifre ve ad soyad zorunludur." };
+  if (!email || !password || !fullName || !phone || !merchantId) {
+    return {
+      error:
+        "E-posta, şifre, ad soyad, telefon ve bağlı işletme zorunludur.",
+    };
   }
   if (password.length < 8) {
     return { error: "Şifre en az 8 karakter olmalıdır." };
@@ -53,7 +48,16 @@ export async function createCourierAction(
 
   const admin = createAdminClient();
 
-  // ── 1. Create auth user ───────────────────────────────────────────────────
+  const { data: merchantRow, error: merchantLookupError } = await admin
+    .from("merchants")
+    .select("id")
+    .eq("id", merchantId)
+    .maybeSingle();
+
+  if (merchantLookupError || !merchantRow) {
+    return { error: "Seçilen işletme bulunamadı." };
+  }
+
   const { data: userData, error: userError } =
     await admin.auth.admin.createUser({
       email,
@@ -70,29 +74,27 @@ export async function createCourierAction(
 
   const userId = userData.user.id;
 
-  // ── 2. Create couriers row ────────────────────────────────────────────────
-  // merchant_id is nullable after migration 00016 — admin-created couriers
-  // are platform-level and not tied to a specific merchant.
   const { data: courierData, error: courierError } = await admin
     .from("couriers")
     .insert({
       user_id: userId,
+      merchant_id: merchantId,
       full_name: fullName,
-      phone: phone || null,
+      phone,
       vehicle_type: vehicle || null,
       is_active: true,
       is_available: true,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")
-    .maybeSingle();
+    .single();
 
   if (courierError || !courierData) {
-    // Rollback: remove orphan auth user
     await admin.auth.admin.deleteUser(userId);
     log.error("admin.create_courier.rollback", {
       adminId: caller.id,
       email,
+      merchantId,
       reason: courierError?.message ?? "No courier row returned",
     });
     return {
@@ -104,24 +106,30 @@ export async function createCourierAction(
 
   const courierId = (courierData as { id: string }).id;
 
-  // ── 3. Set app_metadata ───────────────────────────────────────────────────
   const { error: metaError } = await admin.auth.admin.updateUserById(userId, {
-    app_metadata: { role: "courier", courier_id: courierId },
+    app_metadata: {
+      role: "courier",
+      courier_id: courierId,
+      merchant_id: merchantId,
+    },
   });
 
   if (metaError) {
-    log.warn("admin.create_courier.meta_failed", {
+    await admin.from("couriers").delete().eq("id", courierId);
+    await admin.auth.admin.deleteUser(userId);
+    log.error("admin.create_courier.rollback_meta", {
       adminId: caller.id,
-      userId,
-      courierId,
+      email,
       reason: metaError.message,
     });
+    return { error: "Rol atanamadı. İşlem geri alındı, lütfen tekrar deneyin." };
   }
 
   log.info("admin.create_courier.success", {
     adminId: caller.id,
     userId,
     courierId,
+    merchantId,
     email,
     fullName,
   });

@@ -11,6 +11,7 @@
  *   5. null → redirect to /auth/role-recovery
  */
 import { redirect } from "next/navigation";
+import { roleHome } from "@/lib/routing";
 import { createServerClient } from "@/lib/supabase/server";
 
 export type UserRole = "customer" | "merchant" | "courier" | "admin";
@@ -178,20 +179,12 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   };
 }
 
-/**
- * Role → home route mapping.
- */
+/** Role → home route mapping (canonical). */
+export { roleHome };
+
+/** @deprecated Use roleHome — kept for existing imports. */
 export function getRoleHomePath(role: UserRole): string {
-  switch (role) {
-    case "merchant":
-      return "/merchant";
-    case "courier":
-      return "/courier";
-    case "admin":
-      return "/admin";
-    default:
-      return "/customer/orders";
-  }
+  return roleHome(role);
 }
 
 /**

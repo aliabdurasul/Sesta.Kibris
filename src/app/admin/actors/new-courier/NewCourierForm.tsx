@@ -1,13 +1,18 @@
 "use client";
 
 import { useActionState } from "react";
-import { createMerchantAction } from "./actions";
+import { createCourierAction } from "./actions";
 
 type ActionState = { error: string } | null;
 
-export default function NewMerchantPage() {
+export interface MerchantOption {
+  id: string;
+  name: string;
+}
+
+export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
-    createMerchantAction as (
+    createCourierAction as (
       state: ActionState,
       payload: FormData,
     ) => Promise<ActionState>,
@@ -20,10 +25,16 @@ export default function NewMerchantPage() {
         <a href="/admin/actors" className="text-sm text-blue-600 hover:underline">
           ← Aktörler
         </a>
-        <h2 className="text-lg font-bold text-gray-900">Yeni İşletme Ekle</h2>
+        <h2 className="text-lg font-bold text-gray-900">Yeni Kurye Ekle</h2>
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
+        {merchants.length === 0 && (
+          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+            Önce en az bir işletme oluşturun. Kurye bir işletmeye bağlanmalıdır.
+          </p>
+        )}
+
         {state?.error && (
           <div
             role="alert"
@@ -36,43 +47,39 @@ export default function NewMerchantPage() {
         <form action={action} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              İşletme Adı *
+              Bağlı İşletme *
+            </label>
+            <select
+              name="merchantId"
+              required
+              disabled={merchants.length === 0}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+              defaultValue=""
+            >
+              <option value="" disabled>
+                İşletme seçin…
+              </option>
+              {merchants.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Ad Soyad *
             </label>
             <input
-              name="name"
+              name="fullName"
               type="text"
               required
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Örn: Döner King"
+              placeholder="Ahmet Yılmaz"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Kategori *
-            </label>
-            <select
-              name="category"
-              required
-              defaultValue="grocery"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="grocery">Market / Gıda</option>
-              <option value="water">Su</option>
-              <option value="gas">Gaz</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Adres *
-            </label>
-            <textarea
-              name="address"
-              required
-              rows={2}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="Tam işletme adresi"
-            />
-          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               E-posta *
@@ -82,9 +89,10 @@ export default function NewMerchantPage() {
               type="email"
               required
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="merchant@example.com"
+              placeholder="kurye@example.com"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Şifre *
@@ -98,6 +106,7 @@ export default function NewMerchantPage() {
               placeholder="En az 8 karakter"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Telefon *
@@ -111,15 +120,32 @@ export default function NewMerchantPage() {
             />
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Araç Tipi
+            </label>
+            <select
+              name="vehicle"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Seçiniz</option>
+              <option value="motosiklet">Motosiklet</option>
+              <option value="bisiklet">Bisiklet</option>
+              <option value="araba">Araba</option>
+              <option value="yaya">Yaya</option>
+            </select>
+          </div>
+
           <button
             type="submit"
-            disabled={pending}
-            className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+            disabled={pending || merchants.length === 0}
+            className="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-60"
           >
-            {pending ? "Oluşturuluyor..." : "İşletme Hesabı Oluştur"}
+            {pending ? "Oluşturuluyor..." : "Kurye Hesabı Oluştur"}
           </button>
         </form>
       </div>
     </div>
   );
 }
+

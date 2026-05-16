@@ -21,7 +21,9 @@ async function getActors() {
       .limit(50),
     supabase
       .from("couriers")
-      .select("id, full_name, phone, vehicle_type, is_active, is_available, created_at")
+      .select(
+        "id, full_name, phone, vehicle_type, is_active, is_available, merchant_id, created_at, merchants(name)",
+      )
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
@@ -31,10 +33,19 @@ async function getActors() {
       MerchantRow,
       "id" | "name" | "slug" | "is_active" | "is_open" | "created_at"
     >[],
-    couriers: (couriersRes.data ?? []) as Pick<
+    couriers: (couriersRes.data ?? []) as (Pick<
       CourierRow,
-      "id" | "full_name" | "phone" | "vehicle_type" | "is_active" | "is_available" | "created_at"
-    >[],
+      | "id"
+      | "full_name"
+      | "phone"
+      | "vehicle_type"
+      | "is_active"
+      | "is_available"
+      | "merchant_id"
+      | "created_at"
+    > & { merchants: { name: string } | null })[],
+    couriersError: couriersRes.error?.message ?? null,
+    merchantsError: merchantsRes.error?.message ?? null,
   };
 }
 
@@ -43,11 +54,23 @@ interface PageProps {
 }
 
 export default async function ActorsPage({ searchParams }: PageProps) {
-  const { merchants, couriers } = await getActors();
+  const { merchants, couriers, merchantsError, couriersError } =
+    await getActors();
   const params = await searchParams;
 
   return (
     <div>
+      {(merchantsError || couriersError) && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200"
+        >
+          Veri yüklenemedi. Migration 00017 (admin RLS) uygulandığından emin olun.
+          {merchantsError && <span className="block">İşletmeler: {merchantsError}</span>}
+          {couriersError && <span className="block">Kuryeler: {couriersError}</span>}
+        </div>
+      )}
+
       {params.created && (
         <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700 ring-1 ring-green-200">
           {params.created === "merchant"
@@ -141,7 +164,8 @@ export default async function ActorsPage({ searchParams }: PageProps) {
                     {c.full_name ?? "—"}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {c.phone ?? "Telefon yok"} · {c.vehicle_type ?? "—"}
+                    {c.merchants?.name ?? "İşletme yok"} · {c.phone ?? "Telefon yok"}{" "}
+                    · {c.vehicle_type ?? "—"}
                   </p>
                 </div>
                 <span
