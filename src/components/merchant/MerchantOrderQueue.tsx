@@ -2,10 +2,11 @@
 
 /**
  * Merchant order queue — shows PENDING/CONFIRMED/READY orders.
- * Accept/Reject buttons call transition-order Edge Function.
+ * Accept/Reject buttons call transition-order-status Edge Function.
  * Realtime subscription provides live order updates.
  */
 import { useState } from "react";
+import Link from "next/link";
 import { useOrderSubscription } from "@/hooks/useOrderSubscription";
 import type { Json, OrderStatus } from "@/types/database";
 
@@ -78,7 +79,7 @@ async function transitionOrder(
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -160,9 +161,12 @@ export function MerchantOrderQueue({ initialOrders, merchantId }: Props) {
           >
             <div className="mb-3 flex items-start justify-between gap-2">
               <div>
-                <p className="text-xs text-gray-400">
+                <Link
+                  href={`/merchant/orders/${order.id}`}
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
                   #{order.id.slice(-8).toUpperCase()}
-                </p>
+                </Link>
                 <p className="text-xs text-gray-400">
                   {new Date(order.created_at).toLocaleTimeString("tr-TR", {
                     hour: "2-digit",

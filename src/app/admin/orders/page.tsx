@@ -3,7 +3,7 @@
  * Full list of all orders, paginated.
  */
 import { requireRole } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminServerClient } from "@/lib/supabase/admin";
 import type { Database, OrderStatus } from "@/types/database";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -21,7 +21,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 async function getAllOrders() {
-  const supabase = await createServerClient();
+  const supabase = createAdminServerClient();
   const { data } = await supabase
     .from("orders")
     .select(`id, status, total_amount, created_at, merchants(name)`)

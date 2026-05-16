@@ -3,7 +3,7 @@
  * Shows operational overview: pending orders, active couriers, courier assignment.
  */
 import { requireRole } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminServerClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import type { Database, OrderStatus } from "@/types/database";
 import { AdminOrderAssignment } from "@/components/admin/AdminOrderAssignment";
@@ -12,7 +12,7 @@ type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
 
 async function getAdminData() {
-  const supabase = await createServerClient();
+  const supabase = createAdminServerClient();
 
   const [ordersRes, couriersRes] = await Promise.all([
     supabase

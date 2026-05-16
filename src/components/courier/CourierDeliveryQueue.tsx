@@ -51,7 +51,7 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

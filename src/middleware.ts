@@ -27,7 +27,6 @@ const PUBLIC_PREFIXES = [
   "/merchants",
   "/markets",
   "/checkout",
-  "/staff",
   "/offline",
   "/setup-admin",
 ];

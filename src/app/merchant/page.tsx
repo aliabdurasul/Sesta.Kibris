@@ -7,7 +7,7 @@ import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
 
-import type { Database, OrderStatus, Json } from "@/types/database";
+import type { Database, OrderStatus } from "@/types/database";
 
 type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];

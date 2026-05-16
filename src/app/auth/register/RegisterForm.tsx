@@ -3,13 +3,19 @@
 /**
  * Registration form client component.
  * Only for customer self-registration.
+ *
+ * Accepts redirectTo to thread the checkout→register→login→checkout flow.
  */
 import { useActionState } from "react";
 import { registerAction } from "./actions";
 
 type ActionState = { error: string } | null;
 
-export function RegisterForm() {
+interface Props {
+  redirectTo?: string;
+}
+
+export function RegisterForm({ redirectTo }: Props) {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     registerAction as (state: ActionState, payload: FormData) => Promise<ActionState>,
     null,
@@ -17,6 +23,11 @@ export function RegisterForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Hidden field threads redirectTo through the Server Action */}
+      {redirectTo && (
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+      )}
+
       {state?.error && (
         <div
           role="alert"

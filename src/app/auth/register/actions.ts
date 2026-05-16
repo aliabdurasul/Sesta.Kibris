@@ -42,6 +42,7 @@ export async function registerAction(
   const email = (formData.get("email") as string | null)?.trim() ?? "";
   const password = (formData.get("password") as string | null) ?? "";
   const fullName = (formData.get("fullName") as string | null)?.trim() ?? "";
+  const redirectTo = (formData.get("redirectTo") as string | null)?.trim();
 
   if (!email || !password || !fullName) {
     return { error: "Tüm alanlar zorunludur." };
@@ -101,5 +102,17 @@ export async function registerAction(
     });
   }
 
-  redirect("/auth/login?registered=1");
+  // Preserve redirectTo so checkout flow is not broken after registration.
+  // Only forward safe internal paths (must start with /).
+  const safeRedirect =
+    redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : null;
+
+  const loginUrl = safeRedirect
+    ? `/auth/login?registered=1&redirectTo=${encodeURIComponent(safeRedirect)}`
+    : "/auth/login?registered=1";
+
+  redirect(loginUrl);
+
 }

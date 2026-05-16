@@ -6,7 +6,7 @@ import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { CourierDeliveryQueue } from "@/components/courier/CourierDeliveryQueue";
 
-import type { Database, OrderStatus, Json } from "@/types/database";
+import type { Database, OrderStatus } from "@/types/database";
 
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];

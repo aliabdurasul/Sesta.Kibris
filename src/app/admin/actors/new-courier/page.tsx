@@ -1,14 +1,14 @@
 /**
  * /admin/actors/new-courier — server page loads merchants for dropdown.
  */
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminServerClient } from "@/lib/supabase/admin";
 import { NewCourierForm, type MerchantOption } from "./NewCourierForm";
 import type { Database } from "@/types/database";
 
 type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
 
 async function getMerchantsForSelect(): Promise<MerchantOption[]> {
-  const supabase = await createServerClient();
+  const supabase = createAdminServerClient();
   const { data } = await supabase
     .from("merchants")
     .select("id, name")

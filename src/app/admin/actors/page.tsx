@@ -3,7 +3,7 @@
  * Lists all merchants and couriers. Links to create new ones.
  * Protected by admin role via AdminLayout.
  */
-import { createServerClient } from "@/lib/supabase/server";
+import { createAdminServerClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import type { Database } from "@/types/database";
 
@@ -11,7 +11,7 @@ type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
 
 async function getActors() {
-  const supabase = await createServerClient();
+  const supabase = createAdminServerClient();
 
   const [merchantsRes, couriersRes] = await Promise.all([
     supabase

@@ -2,7 +2,7 @@
 
 /**
  * Admin courier assignment component.
- * Assigns available courier to READY orders via the transition-order Edge Function.
+ * Assigns available courier to READY orders via the transition-order-status Edge Function.
  * Also shows all active orders with status.
  *
  * IMPORTANT: Assignment MUST go through the Edge Function — never direct DB writes.
@@ -57,7 +57,7 @@ async function assignCourierViaEdgeFunction(
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
