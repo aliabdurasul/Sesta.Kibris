@@ -167,6 +167,20 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
     redirect("/auth/role-recovery");
   }
 
+  // ── Stale JWT refresh ────────────────────────────────────────────────────
+  // If the role was resolved via DB fallback (app_metadata.role was absent),
+  // the current JWT is stale. Refresh the session so middleware gets the
+  // correct app_metadata on the next request, permanently fixing the loop.
+  // This is a best-effort call — if it fails, Guard 1 in middleware handles it.
+  const jwtRole = meta?.["role"] as UserRole | undefined;
+  if (!jwtRole && resolved.role) {
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // Non-fatal — middleware Guard 1 covers this case
+    }
+  }
+
   // Wrong role → correct dashboard
   if (resolved.role !== allowedRole) {
     redirect(getRoleHomePath(resolved.role));
