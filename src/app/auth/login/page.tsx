@@ -29,6 +29,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
 
   const params = await searchParams;
   const justRegistered = params.registered === "1";
+  const redirectTo = params.redirectTo ?? "";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
@@ -45,7 +46,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
         )}
 
         <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
-          <LoginForm />
+          <LoginForm redirectTo={redirectTo} />
         </div>
 
         <p className="mt-4 text-center text-sm text-gray-500">

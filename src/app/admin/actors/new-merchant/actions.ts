@@ -3,16 +3,25 @@
 /**
  * Server Action: Admin creates a new merchant.
  *
- * Flow:
- *   1. Create auth user (admin.auth.admin.createUser)
- *   2. Set app_metadata.role = "merchant"
- *   3. Create merchants row
- *   4. Link user_id → merchant
+ * SECURITY: requireRole("admin") is called INSIDE the action.
+ * UI route protection (admin layout) is a second layer, not the primary guard.
+ * Any direct Server Action invocation without a valid admin JWT is rejected.
  *
- * Only callable by admin. No self-registration for merchants.
+ * Flow:
+ *   1. Verify caller is admin (requireRole)
+ *   2. Create auth user via admin API (email_confirm: true — admin bypasses email flow)
+ *   3. Create merchants row (is_active: false — admin must activate after setup)
+ *   4. Set app_metadata.role = "merchant" + merchant_id
+ *   5. Log the creation
+ *
+ * On any failure after auth user creation:
+ *   - Auth user is deleted to prevent orphan accounts
+ *   - Error is returned to admin UI
  */
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { requireRole } from "@/lib/auth";
+import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
 type ActionState = { error: string } | null;
@@ -38,10 +47,16 @@ export async function createMerchantAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  // ── SECURITY GATE ─────────────────────────────────────────────────────────
+  // requireRole throws/redirects if caller is not admin.
+  // This protects against direct Server Action invocations that bypass the UI.
+  const caller = await requireRole("admin");
+
   const email = (formData.get("email") as string | null)?.trim() ?? "";
   const password = (formData.get("password") as string | null) ?? "";
   const name = (formData.get("name") as string | null)?.trim() ?? "";
   const phone = (formData.get("phone") as string | null)?.trim() ?? "";
+  const category = (formData.get("category") as string | null)?.trim() ?? "grocery";
 
   if (!email || !password || !name) {
     return { error: "E-posta, şifre ve işletme adı zorunludur." };
@@ -57,7 +72,7 @@ export async function createMerchantAction(
     await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // skip email confirmation for admin-created accounts
+      email_confirm: true,
     });
 
   if (userError) {
@@ -73,31 +88,58 @@ export async function createMerchantAction(
   // ── 2. Create merchants row ───────────────────────────────────────────────
   const { data: merchantData, error: merchantError } = await admin
     .from("merchants")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .insert({
       user_id: userId,
+      owner_user_id: userId,
       name,
       slug,
+      category,
       phone: phone || null,
-      is_active: true,
-      is_open: true,
+      is_active: false,  // Admin must explicitly activate after setup
+      is_open: false,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")
     .maybeSingle();
 
-  if (merchantError) {
-    return { error: `İşletme oluşturulamadı: ${merchantError.message}` };
-  }
-
-  if (!merchantData) {
-    return { error: "İşletme oluşturuldu ancak kayıt doğrulanamadı." };
+  if (merchantError || !merchantData) {
+    // Rollback: delete the auth user to prevent orphan account
+    await admin.auth.admin.deleteUser(userId);
+    log.error("admin.create_merchant.rollback", {
+      adminId: caller.id,
+      email,
+      reason: merchantError?.message ?? "No merchant row returned",
+    });
+    return {
+      error: merchantError
+        ? `İşletme oluşturulamadı: ${merchantError.message}`
+        : "İşletme oluşturuldu ancak kayıt doğrulanamadı.",
+    };
   }
 
   const merchantId = (merchantData as { id: string }).id;
 
-  // ── 3. Set app_metadata.role = "merchant" + merchant_id ──────────────────
-  await admin.auth.admin.updateUserById(userId, {
+  // ── 3. Set app_metadata ───────────────────────────────────────────────────
+  const { error: metaError } = await admin.auth.admin.updateUserById(userId, {
     app_metadata: { role: "merchant", merchant_id: merchantId },
+  });
+
+  if (metaError) {
+    // Non-fatal: merchant can still log in via DB fallback role resolution
+    log.warn("admin.create_merchant.meta_failed", {
+      adminId: caller.id,
+      userId,
+      merchantId,
+      reason: metaError.message,
+    });
+  }
+
+  log.info("admin.create_merchant.success", {
+    adminId: caller.id,
+    userId,
+    merchantId,
+    email,
+    name,
   });
 
   redirect("/admin/actors?created=merchant");

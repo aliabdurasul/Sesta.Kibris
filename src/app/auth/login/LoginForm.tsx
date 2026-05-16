@@ -4,13 +4,21 @@
  * Login form client component.
  * Handles form state + error display.
  * Submits via Server Action (loginAction).
+ *
+ * redirectTo: hidden input forwarded to Server Action.
+ * loginAction redirects to this path after successful login
+ * if it is a safe internal path (e.g. /checkout).
  */
 import { useActionState } from "react";
 import { loginAction } from "./actions";
 
 type ActionState = { error: string } | null;
 
-export function LoginForm() {
+interface Props {
+  redirectTo?: string;
+}
+
+export function LoginForm({ redirectTo }: Props) {
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     loginAction as (state: ActionState, payload: FormData) => Promise<ActionState>,
     null,
@@ -18,6 +26,11 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Hidden field — carries redirectTo through the Server Action */}
+      {redirectTo && (
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+      )}
+
       {state?.error && (
         <div
           role="alert"

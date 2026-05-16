@@ -31,11 +31,12 @@ const PROTECTED_ROUTES: Record<string, string> = {
 const PUBLIC_PREFIXES = [
   "/_next",
   "/api",
-  "/auth",        // all auth pages (login, register, signout, role-recovery)
-  "/merchants",   // public storefront
-  "/checkout",    // auth check handled server-side in page
-  "/staff",       // internal ops — not customer-facing, no redirect loop
-  "/offline",     // PWA offline fallback
+  "/auth",         // all auth pages (login, register, signout, role-recovery)
+  "/merchants",    // public storefront
+  "/checkout",     // auth check handled server-side in page
+  "/staff",        // internal ops login hub — not customer-facing, no redirect loop
+  "/offline",      // PWA offline fallback
+  "/setup-admin",  // first-run wizard — must be public, checks admin existence server-side
 ];
 
 function isPublicPath(pathname: string): boolean {

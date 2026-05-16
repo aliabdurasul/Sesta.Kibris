@@ -6,17 +6,22 @@
  * Atomic flow (all-or-nothing):
  *   1. supabase.auth.signUp() — creates auth user
  *   2. adminClient.auth.admin.updateUserById() — sets app_metadata.role = "customer"
- *   3. adminClient.from("customers").insert() — creates customers row
+ *   3. adminClient.from("customers").upsert() — creates customers row
  *
- * If step 2 or 3 fails, we still have a valid auth user but no role.
- * resolveUserRole() in auth.ts will recover via DB fallback on next login.
+ * Schema (after migration 00016):
+ *   customers.id = auth.users.id (PK, same UUID)
+ *   customers.user_id = auth.users.id (canonical FK for app queries)
  *
  * Customers are the ONLY self-registerable role.
  * Merchants and couriers are created by admin only.
+ *
+ * If step 2 or 3 fails, auth user still exists but has no role.
+ * resolveUserRole() in auth.ts recovers via DB fallback on next login.
  */
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
 type ActionState = { error: string } | null;
@@ -66,7 +71,7 @@ export async function registerAction(
 
   const userId = data.user.id;
 
-  // ── 2 & 3. Atomically assign role + create customers row (admin client) ───
+  // ── 2 & 3. Assign role + create customers row (service role) ───────────────
   try {
     const admin = createAdminClient();
 
@@ -75,16 +80,25 @@ export async function registerAction(
       app_metadata: { role: "customer" },
     });
 
-    // Create customers row (idempotent — ignore conflict)
+    // Create customers row.
+    // id = userId (customers.id IS the auth user UUID per migration 00003)
+    // user_id = userId (canonical FK added by migration 00016)
+    // phone and full_name are nullable after migration 00016
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await admin.from("customers").upsert(
-      { user_id: userId, full_name: fullName } as any,
-      { onConflict: "user_id" },
+    await (admin.from("customers") as any).upsert(
+      { id: userId, user_id: userId, full_name: fullName || null },
+      { onConflict: "id" },
     );
-  } catch {
+
+    log.info("register.success", { userId, email });
+  } catch (err) {
     // Role + row creation failed, but auth user exists.
     // resolveUserRole() will recover on first login via DB fallback.
-    // Not a blocking error — user can still log in.
+    log.warn("register.post_signup_failed", {
+      userId,
+      email,
+      reason: err instanceof Error ? err.message : String(err),
+    });
   }
 
   redirect("/auth/login?registered=1");
