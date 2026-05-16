@@ -11,12 +11,14 @@
  *   5. null → redirect to /auth/role-recovery
  */
 import { redirect } from "next/navigation";
-import { roleHome } from "@/lib/routing";
 import { createServerClient } from "@/lib/supabase/server";
+import { roleHome } from "@/lib/routing/role-home";
 
 export type UserRole = "customer" | "merchant" | "courier" | "admin";
 
 export { userMustChangePassword } from "@/lib/auth/password-change";
+export type { ActorRole } from "@/lib/routing/role-home";
+export { roleHome };
 
 export interface SessionUser {
   id: string;
@@ -179,10 +181,9 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   };
 }
 
-/** Role → home route mapping (canonical). */
-export { roleHome };
-
-/** @deprecated Use roleHome — kept for existing imports. */
+/**
+ * Role → home route mapping (alias for roleHome).
+ */
 export function getRoleHomePath(role: UserRole): string {
   return roleHome(role);
 }

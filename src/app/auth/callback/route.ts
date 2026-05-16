@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 
 import type { Database } from "@/types/database";
 import { userMustChangePassword } from "@/lib/auth/password-change";
+import { roleHomeFromJwt } from "@/lib/routing/role-home";
 
 function isSafeInternalPath(path: string | null): path is string {
   if (!path) return false;
@@ -22,23 +23,6 @@ function isSafeInternalPath(path: string | null): path is string {
   // Avoid callback loops
   if (path.startsWith("/auth/callback")) return false;
   return true;
-}
-
-function defaultHomeForRole(
-  role: string | undefined,
-): "/admin" | "/merchant" | "/courier" | "/customer/orders" | "/auth/role-recovery" {
-  switch (role) {
-    case "admin":
-      return "/admin";
-    case "merchant":
-      return "/merchant";
-    case "courier":
-      return "/courier";
-    case "customer":
-      return "/customer/orders";
-    default:
-      return "/auth/role-recovery";
-  }
 }
 
 export async function GET(request: Request) {
@@ -104,6 +88,6 @@ export async function GET(request: Request) {
   const role = (user.app_metadata as Record<string, string> | undefined)?.[
     "role"
   ];
-  const dest = defaultHomeForRole(role);
+  const dest = roleHomeFromJwt(role ?? null);
   return NextResponse.redirect(new URL(dest, origin));
 }

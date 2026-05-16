@@ -1,14 +1,14 @@
 "use client";
 
+/**
+ * Admin UI: create courier — merchant assignment required (tenant isolation).
+ */
 import { useActionState } from "react";
 import { createCourierAction } from "./actions";
 
-type ActionState = { error: string } | null;
+export type MerchantOption = { id: string; name: string };
 
-export interface MerchantOption {
-  id: string;
-  name: string;
-}
+type ActionState = { error: string } | null;
 
 export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
@@ -30,16 +30,16 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
 
       <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-gray-100">
         {merchants.length === 0 && (
-          <p className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
-            Önce en az bir işletme oluşturun. Kurye bir işletmeye bağlanmalıdır.
-          </p>
+          <div
+            role="alert"
+            className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200"
+          >
+            Önce en az bir işletme oluşturun; kuryeler bir işletmeye bağlanmalıdır.
+          </div>
         )}
 
         {state?.error && (
-          <div
-            role="alert"
-            className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-200"
-          >
+          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-200">
             {state.error}
           </div>
         )}
@@ -47,13 +47,13 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
         <form action={action} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Bağlı İşletme *
+              İşletme *
             </label>
             <select
               name="merchantId"
               required
-              disabled={merchants.length === 0}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+              disabled={merchants.length === 0 || pending}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
               defaultValue=""
             >
               <option value="" disabled>
@@ -79,7 +79,6 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
               placeholder="Ahmet Yılmaz"
             />
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               E-posta *
@@ -92,7 +91,6 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
               placeholder="kurye@example.com"
             />
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Şifre *
@@ -106,20 +104,17 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
               placeholder="En az 8 karakter"
             />
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Telefon *
+              Telefon
             </label>
             <input
               name="phone"
               type="tel"
-              required
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="+90 5XX XXX XXXX"
             />
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Araç Tipi
@@ -148,4 +143,3 @@ export function NewCourierForm({ merchants }: { merchants: MerchantOption[] }) {
     </div>
   );
 }
-
