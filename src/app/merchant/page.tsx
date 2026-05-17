@@ -3,7 +3,7 @@
  * Shows PENDING + active orders for this merchant.
  * Realtime subscription added in Stage 1I.
  */
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
 
@@ -41,7 +41,13 @@ async function getActiveOrders(merchantId: string) {
 }
 
 export default async function MerchantDashboard() {
-  const session = await requireRole("merchant");
+  // Layout already enforces requireRole("merchant") — no second check needed.
+  // Double requireRole() calls can participate in redirect loops.
+  const session = await getSession();
+  if (!session) {
+    return null;
+  }
+
   const merchantId = await getMerchantId(session.id);
 
   if (!merchantId) {

@@ -2,7 +2,6 @@
  * Admin order history — /admin/orders
  * Full list of all orders, paginated.
  */
-import { requireRole } from "@/lib/auth";
 import { createAdminServerClient } from "@/lib/supabase/admin";
 import type { Database, OrderStatus } from "@/types/database";
 
@@ -35,7 +34,7 @@ async function getAllOrders() {
 }
 
 export default async function AdminOrdersPage() {
-  await requireRole("admin");
+  // Layout already enforces requireRole("admin") — no second check needed.
   const orders = await getAllOrders();
 
   return (

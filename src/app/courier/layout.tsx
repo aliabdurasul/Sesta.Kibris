@@ -12,6 +12,8 @@ import { CourierNav } from "@/components/courier/CourierNav";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
 
 async function getCourierData(
@@ -39,7 +41,15 @@ export default async function CourierLayout({
 }: {
   children: React.ReactNode;
 }) {
+  if (IS_DEV) {
+    console.log("[AUTH TRACE] CourierLayout | calling requireRole(courier)");
+  }
   const session = await requireRole("courier");
+  if (IS_DEV) {
+    console.log(
+      `[AUTH TRACE] CourierLayout | requireRole resolved | userId=${session.id} | role=${session.role}`,
+    );
+  }
   const courier = await getCourierData(session.id);
 
   // ── No courier row → show setup guidance instead of crashing ─────────────

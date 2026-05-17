@@ -7,11 +7,14 @@
  * with a different account, avoiding loop with role-recovery).
  */
 import Link from "next/link";
+import { headers } from "next/headers";
 import { getSession, getRoleHomePath } from "@/lib/auth";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
+
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 export const metadata = {
   title: "Giriş Yap — SestaKıbrıs",
@@ -38,8 +41,25 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const session = await getSession();
 
   // Logged in with a valid role → go to dashboard
+  // Guard: only redirect if the target path is not already where the session
+  // would send us. This prevents the login page from participating in a loop
+  // where the redirect target is the same as the inbound path.
   if (session) {
-    redirect(getRoleHomePath(session.role));
+    const target = getRoleHomePath(session.role);
+    // Read the path that brought the user here (set by middleware)
+    const headersList = await headers();
+    const inboundPath = headersList.get("x-pathname") ?? "/auth/login";
+
+    if (IS_DEV) {
+      console.log(
+        `[AUTH TRACE] LoginPage | inbound=${inboundPath} | session.role=${session.role} | target=${target}`,
+      );
+    }
+
+    // Never redirect if we'd send the user back to where they came from
+    if (!inboundPath.startsWith(target)) {
+      redirect(target);
+    }
   }
 
   const params = await searchParams;

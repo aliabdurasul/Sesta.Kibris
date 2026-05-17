@@ -2,7 +2,7 @@
  * Courier dashboard — /courier
  * Shows orders ASSIGNED or IN_TRANSIT for this courier.
  */
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { CourierDeliveryQueue } from "@/components/courier/CourierDeliveryQueue";
 
@@ -49,7 +49,14 @@ async function getAssignedOrders(courierId: string) {
 }
 
 export default async function CourierDashboard() {
-  const session = await requireRole("courier");
+  // Layout already enforces requireRole("courier") — no second check needed.
+  // Double requireRole() calls can participate in redirect loops.
+  const session = await getSession();
+  if (!session) {
+    // Layout guard handles unauthenticated — this is a safety fallback only.
+    return null;
+  }
+
   const courierId = await getCourierId(session.id);
 
   if (!courierId) {

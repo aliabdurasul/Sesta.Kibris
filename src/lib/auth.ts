@@ -11,8 +11,11 @@
  *   5. null → redirect to /auth/role-recovery
  */
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServerClient } from "@/lib/supabase/server";
 import { roleHome } from "@/lib/routing/role-home";
+
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 export type UserRole = "customer" | "merchant" | "courier" | "admin";
 
@@ -154,36 +157,78 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
     error,
   } = await supabase.auth.getUser();
 
+  // Read current pathname forwarded by middleware
+  const headersList = await headers();
+  const currentPath = headersList.get("x-pathname") ?? "unknown";
+
   // No session → login
   if (error || !user) {
+    if (IS_DEV) {
+      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | no user → /auth/login`);
+    }
     redirect("/auth/login");
   }
 
   const meta = user.app_metadata as Record<string, string> | undefined;
+  const jwtRole = meta?.["role"] as UserRole | undefined;
   const resolved = await resolveUserRole(user.id, meta);
 
-  // Authenticated but no role anywhere → recovery page (not login loop)
+  if (IS_DEV) {
+    console.log(
+      `[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | jwt=${jwtRole ?? "null"} | resolved=${resolved?.role ?? "null"}`,
+    );
+  }
+
+  // Authenticated but no role anywhere → recovery page
   if (!resolved) {
+    if (IS_DEV) {
+      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | no role → /auth/role-recovery`);
+    }
     redirect("/auth/role-recovery");
   }
 
   // ── Stale JWT refresh ────────────────────────────────────────────────────
-  // If the role was resolved via DB fallback (app_metadata.role was absent),
-  // the current JWT is stale. Refresh the session so middleware gets the
-  // correct app_metadata on the next request, permanently fixing the loop.
-  // This is a best-effort call — if it fails, Guard 1 in middleware handles it.
-  const jwtRole = meta?.["role"] as UserRole | undefined;
+  // Role came from DB fallback (JWT had no role). Refresh the session so
+  // middleware gets correct app_metadata on subsequent requests.
   if (!jwtRole && resolved.role) {
+    if (IS_DEV) {
+      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | stale JWT → refreshSession()`);
+    }
     try {
       await supabase.auth.refreshSession();
     } catch {
-      // Non-fatal — middleware Guard 1 covers this case
+      // Non-fatal — middleware Guard 1 covers this
     }
   }
 
-  // Wrong role → correct dashboard
+  // ── Same-subtree guard ─────────────────────────────────────────────────────
+  // Role mismatch would normally redirect. But if the redirect target equals
+  // the current path, we are already in a loop. Return the session to let the
+  // layout render instead of redirecting to the same location.
   if (resolved.role !== allowedRole) {
-    redirect(getRoleHomePath(resolved.role));
+    const target = getRoleHomePath(resolved.role);
+    const alreadyThere =
+      currentPath === target || currentPath.startsWith(target + "/");
+
+    if (IS_DEV) {
+      console.log(
+        `[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | role mismatch: resolved=${resolved.role} | target=${target} | alreadyThere=${alreadyThere}`,
+      );
+    }
+
+    if (alreadyThere) {
+      // Return resolved session — don't redirect to where we already are.
+      // The layout/page will render with correct session data.
+      return {
+        id: user.id,
+        email: user.email ?? "",
+        role: resolved.role,
+        merchantId: resolved.merchantId,
+        courierId: resolved.courierId,
+      };
+    }
+
+    redirect(target);
   }
 
   return {

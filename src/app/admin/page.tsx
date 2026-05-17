@@ -2,7 +2,7 @@
  * Admin dashboard — /admin
  * Shows operational overview: pending orders, active couriers, courier assignment.
  */
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { createAdminServerClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import type { Database, OrderStatus } from "@/types/database";
@@ -42,7 +42,9 @@ async function getAdminData() {
 }
 
 export default async function AdminDashboard() {
-  await requireRole("admin");
+  // Layout already enforces requireRole("admin") — no second check needed.
+  const session = await getSession();
+  if (!session) return null;
   const { orders, couriers } = await getAdminData();
 
   const pending = orders.filter((o) => o.status === "PENDING").length;

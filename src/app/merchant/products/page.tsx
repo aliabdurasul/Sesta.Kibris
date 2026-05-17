@@ -2,7 +2,7 @@
  * Merchant product management — /merchant/products
  * Lists all products for this merchant. Add/edit/toggle availability.
  */
-import { requireRole } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { ProductManager } from "@/components/merchant/ProductManager";
 
@@ -38,7 +38,9 @@ async function getMerchantProducts(userId: string) {
 }
 
 export default async function MerchantProductsPage() {
-  const session = await requireRole("merchant");
+  // Layout already enforces requireRole("merchant") — no second check needed.
+  const session = await getSession();
+  if (!session) return null;
   const { merchantId, products } = await getMerchantProducts(session.id);
 
   if (!merchantId) {
