@@ -73,6 +73,7 @@ export interface Database {
           name: string;
           description: string | null;
           price: number;
+          unit: string;
           image_url: string | null;
           category: string | null;
           is_available: boolean;
@@ -84,6 +85,7 @@ export interface Database {
           merchant_id: string;
           name: string;
           price: number;
+          unit: string;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
       };
