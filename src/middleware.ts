@@ -10,7 +10,8 @@
  *   Sets x-pathname on the forwarded request so server components can
  *   read the current pathname via headers() without needing searchParams.
  */
-import { NextResponse, type NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
 import { updateSession } from "@/lib/supabase/middleware";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
