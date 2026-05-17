@@ -2,17 +2,38 @@
 
 /**
  * Merchant product manager.
- * Toggle availability, add new product, edit name/price.
- * All writes go through Supabase client (RLS enforces merchant ownership).
+ * Toggle availability, add new product.
+ *
+ * INSERT path:
+ *   AddProductForm → createProduct (Server Action) → DB
+ *
+ * WHY Server Action for inserts (not direct supabase client):
+ *   products.unit is NOT NULL in the schema. The browser client insert was
+ *   silently failing because unit was never included in the payload.
+ *   The server action validates unit before every insert and resolves
+ *   merchant_id from the authenticated session instead of trusting the prop.
+ *
+ * UPDATE path (toggle availability):
+ *   Still uses RLS-scoped browser client — low risk, no NOT NULL columns touched.
  */
 import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { createProduct } from "@/app/merchant/products/actions";
 import type { Database } from "@/types/database";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
-type ProductUpdate = Partial<
-  Pick<Product, "name" | "description" | "price" | "category" | "is_available" | "sort_order">
->;
+
+/** Units available for selection. Must match allowed values in the DB / business logic. */
+const UNIT_OPTIONS = [
+  { value: "piece", label: "Adet" },
+  { value: "kg", label: "Kilogram (kg)" },
+  { value: "gram", label: "Gram (g)" },
+  { value: "liter", label: "Litre (L)" },
+  { value: "box", label: "Kutu" },
+  { value: "pack", label: "Paket" },
+] as const;
+
+const DEFAULT_UNIT = "piece";
 
 interface Props {
   initialProducts: Partial<Product>[];
@@ -70,7 +91,6 @@ export function ProductManager({ initialProducts, merchantId }: Props) {
 
       {showAddForm && (
         <AddProductForm
-          merchantId={merchantId}
           onAdded={(p) => {
             setProducts((prev) => [...prev, p]);
             setShowAddForm(false);
@@ -94,6 +114,11 @@ export function ProductManager({ initialProducts, merchantId }: Props) {
                     ? `${(product.price / 100).toFixed(2)} ₺`
                     : "—"}
                 </span>
+                {product.unit && (
+                  <span className="rounded bg-gray-100 px-1.5 py-0.5">
+                    {product.unit}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -125,21 +150,22 @@ export function ProductManager({ initialProducts, merchantId }: Props) {
   );
 }
 
+// ─── Add Product Form ─────────────────────────────────────────────────────────
+// merchantId prop removed — server action reads it from session.
+
 interface AddProductFormProps {
-  merchantId: string;
   onAdded: (product: Partial<Product>) => void;
   onCancel: () => void;
 }
 
-function AddProductForm({ merchantId, onAdded, onCancel }: AddProductFormProps) {
+function AddProductForm({ onAdded, onCancel }: AddProductFormProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
+  const [unit, setUnit] = useState<string>(DEFAULT_UNIT);
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const supabase = createBrowserClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,28 +180,38 @@ function AddProductForm({ merchantId, onAdded, onCancel }: AddProductFormProps) 
       setError("Ürün adı zorunlu.");
       return;
     }
+    // unit always has a value (controlled with default), but guard anyway
+    if (!unit) {
+      setError("Birim seçimi zorunludur.");
+      return;
+    }
 
     setSaving(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error: insertError } = await (supabase as any)
-      .from("products")
-      .insert({
-        merchant_id: merchantId,
+    try {
+      const result = await createProduct({
         name: name.trim(),
         price: priceKurus,
+        unit,
+        description: description.trim() || undefined,
+        category: category.trim() || undefined,
+      });
+
+      // Pass optimistic product back to parent for instant list update.
+      // Unit shown immediately; server is the source of truth for id/timestamps.
+      onAdded({
+        id: result.id,
+        name: name.trim(),
+        price: priceKurus,
+        unit,
         category: category.trim() || null,
         description: description.trim() || null,
         is_available: true,
-      })
-      .select("id, name, price, category, description, is_available")
-      .maybeSingle();
-
-    if (insertError || !data) {
-      setError("Ürün eklenemedi.");
-    } else {
-      onAdded(data);
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ürün eklenemedi.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   return (
@@ -199,6 +235,7 @@ function AddProductForm({ merchantId, onAdded, onCancel }: AddProductFormProps) 
           required
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
         />
+
         <input
           value={price}
           onChange={(e) => setPrice(e.target.value)}
@@ -209,12 +246,33 @@ function AddProductForm({ merchantId, onAdded, onCancel }: AddProductFormProps) 
           required
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
         />
+
+        {/* Unit — required, NOT NULL in DB. Always has a value via controlled state. */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">
+            Birim *
+          </label>
+          <select
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            required
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            {UNIT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <input
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           placeholder="Kategori (opsiyonel)"
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
         />
+
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
