@@ -6,12 +6,18 @@
  *     requireRole() in layouts resolves via DB fallback.
  *   Guard 2 — already at destination: never redirect to the current path.
  *
- * HEADER FORWARDING:
- *   Sets x-pathname on the forwarded request so server components can
- *   read the current pathname via headers() without needing searchParams.
+ * HEADER FORWARDING (x-pathname):
+ *   The pathname is forwarded to server components via extraRequestHeaders
+ *   passed to updateSession(). This uses { request: { headers } } internally
+ *   which preserves the original request body — critical for Server Actions.
+ *
+ *   DO NOT use `new NextRequest(url, { body: request.body })` here.
+ *   ReadableStream bodies can only be consumed once. Cloning a NextRequest
+ *   with the body and passing it to NextResponse.next({ request: clone })
+ *   drops the body, causing Server Actions to crash with a digest error:
+ *   "An error occurred in the Server Components render"
  */
 import { NextRequest, NextResponse } from "next/server";
-
 import { updateSession } from "@/lib/supabase/middleware";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
@@ -58,24 +64,18 @@ function isPublicPath(pathname: string): boolean {
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Forward pathname to server components via request header ─────────────
-  // Allows requireRole() and layouts to read the current path via headers().
-  const patchedHeaders = new Headers(request.headers);
-  patchedHeaders.set("x-pathname", pathname);
-  const patchedRequest = new NextRequest(request.url, {
-    method: request.method,
-    headers: patchedHeaders,
-    body: request.body,
-  });
+  // Forward pathname to server components via request header.
+  // updateSession uses { request: { headers } } internally — body is preserved.
+  const pathnameHeader = { "x-pathname": pathname };
 
   if (isPublicPath(pathname)) {
-    const result = await updateSession(patchedRequest);
+    const result = await updateSession(request, pathnameHeader);
     if (result instanceof NextResponse) return result;
     if ("response" in result) return result.response;
     return NextResponse.next();
   }
 
-  const result = await updateSession(patchedRequest);
+  const result = await updateSession(request, pathnameHeader);
 
   if (result instanceof NextResponse || !("user" in result)) {
     return result instanceof NextResponse ? result : NextResponse.next();
@@ -85,6 +85,7 @@ export default async function middleware(request: NextRequest) {
 
   const gated = protectedMatch(pathname);
 
+  // ── Not a protected dashboard route — never redirect by role ─────────────
   if (!gated) {
     return response;
   }
