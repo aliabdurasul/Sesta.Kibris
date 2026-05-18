@@ -9,15 +9,15 @@
  *   - Server action validates before insert and throws a typed error the UI can catch
  *   - merchantId is resolved from the authenticated session — never trusted from client
  *
- * Runtime: nodejs (explicit).
- *   Prevents Turbopack/Next.js 16 from running this in an edge-compatible context,
- *   which would break next/headers cookies() integration used by createServerClient().
+ * Runtime: Node.js (default for App Router Server Actions — no explicit export needed).
+ *   "use server" files must only export async functions. Exporting `runtime`
+ *   constants is invalid and causes: "Only async functions are allowed to be
+ *   exported in a 'use server' file."
  *
  * Security:
  *   requireRole("merchant") enforces auth on every call.
  *   merchant_id is always session.merchantId — not a client-supplied value.
  */
-export const runtime = "nodejs";
 
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
