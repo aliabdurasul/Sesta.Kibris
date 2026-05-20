@@ -61,8 +61,18 @@ function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
+const ROOT_WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Root page is app/page.tsx (GET → /merchants). Block write methods without route.ts conflict.
+  if (pathname === "/" && ROOT_WRITE_METHODS.has(request.method)) {
+    return NextResponse.json(
+      { error: "Method not allowed" },
+      { status: 405, headers: { Allow: "GET, HEAD" } },
+    );
+  }
 
   // Forward pathname to server components via request header.
   // updateSession uses { request: { headers } } internally — body is preserved.
