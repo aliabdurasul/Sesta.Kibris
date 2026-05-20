@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
-  { href: "/merchant", label: "Siparişler", icon: "📋" },
-  { href: "/merchant/products", label: "Ürünler", icon: "🍽️" },
-];
+  { href: "/merchant", label: "Siparişler", icon: "📋", matchPrefix: "/merchants/" },
+  { href: "/merchant/products", label: "Ürünler", icon: "🍽️", matchPrefix: "/merchant/products" },
+] as const;
 
 export function MerchantNav() {
   const pathname = usePathname();
@@ -17,7 +17,7 @@ export function MerchantNav() {
         {NAV_ITEMS.map((item) => {
           const isActive =
             item.href === "/merchant"
-              ? pathname === "/merchant"
+              ? pathname === "/merchant" || pathname.startsWith(item.matchPrefix)
               : pathname.startsWith(item.href);
 
           return (

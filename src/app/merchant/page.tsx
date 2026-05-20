@@ -1,80 +1,33 @@
 /**
- * Merchant dashboard — /merchant
- * Shows PENDING + active orders for this merchant.
- * Realtime subscription added in Stage 1I.
+ * /merchant — resolver only. Redirects to the merchant's canonical storefront slug.
+ * Operational dashboard UI lives at /merchants/[slug] for owners.
  */
-import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
+import { getMerchantSlugForUser } from "@/lib/merchant/resolve-slug";
 
-import type { Database, OrderStatus } from "@/types/database";
-
-type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
-type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
-type OrderItemRow = Database["public"]["Tables"]["order_items"]["Row"];
-
-async function getMerchantId(userId: string): Promise<string | null> {
+export default async function MerchantRootPage() {
   const supabase = await createServerClient();
-  const { data } = await supabase
-    .from("merchants")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return (data as Pick<MerchantRow, "id"> | null)?.id ?? null;
-}
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-async function getActiveOrders(merchantId: string) {
-  const supabase = await createServerClient();
-  const { data } = await supabase
-    .from("orders")
-    .select(
-      `id, status, total_amount, delivery_address, notes, created_at,
-       order_items(id, quantity, unit_price, snapshot)`,
-    )
-    .eq("merchant_id", merchantId)
-    .in("status", ["PENDING", "CONFIRMED", "READY"])
-    .order("created_at", { ascending: true });
-  return (data ?? []) as (Pick<
-    OrderRow,
-    "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"
-  > & { order_items: Pick<OrderItemRow, "id" | "quantity" | "unit_price" | "snapshot">[] })[];
-}
-
-export default async function MerchantDashboard() {
-  // Layout already enforces requireRole("merchant") — no second check needed.
-  // Double requireRole() calls can participate in redirect loops.
-  const session = await getSession();
-  if (!session) {
-    return null;
+  if (!user) {
+    redirect("/auth/login");
   }
 
-  const merchantId = await getMerchantId(session.id);
+  const merchant = await getMerchantSlugForUser(user.id);
 
-  if (!merchantId) {
+  if (!merchant?.slug) {
     return (
       <div className="py-16 text-center text-gray-400">
         <p>Market kaydınız bulunamadı.</p>
+        <p className="mt-2 text-sm">
+          Yöneticinizden işletme kaydının oluşturulmasını isteyin.
+        </p>
       </div>
     );
   }
 
-  const orders = await getActiveOrders(merchantId);
-
-  return (
-    <div>
-      <h2 className="mb-4 text-lg font-bold text-gray-900">
-        Aktif Siparişler
-        {orders.length > 0 && (
-          <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-sm text-blue-700">
-            {orders.length}
-          </span>
-        )}
-      </h2>
-
-      <MerchantOrderQueue
-        initialOrders={orders}
-        merchantId={merchantId}
-      />
-    </div>
-  );
+  redirect(`/merchants/${merchant.slug}`);
 }

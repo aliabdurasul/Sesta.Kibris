@@ -1,25 +1,26 @@
 import Link from "next/link";
-import Image from "next/image";
 
 interface MerchantCardProps {
   merchant: {
     id: string;
     name: string;
     slug: string;
-    description: string | null;
-    logo_url: string | null;
-    average_delivery_minutes: number | null;
-    minimum_order_amount: number | null;
+    category?: string;
+    is_open?: boolean;
+    address?: string | null;
+    phone?: string | null;
   };
 }
 
-export function MerchantCard({ merchant }: MerchantCardProps) {
-  const minOrder = merchant.minimum_order_amount
-    ? `Min. ${(merchant.minimum_order_amount / 100).toFixed(0)} ₺`
-    : null;
+const CATEGORY_LABELS: Record<string, string> = {
+  grocery: "Market / Gıda",
+  water: "Su",
+  gas: "Gaz",
+};
 
-  const deliveryTime = merchant.average_delivery_minutes
-    ? `~${merchant.average_delivery_minutes} dk`
+export function MerchantCard({ merchant }: MerchantCardProps) {
+  const categoryLabel = merchant.category
+    ? (CATEGORY_LABELS[merchant.category] ?? merchant.category)
     : null;
 
   return (
@@ -27,35 +28,35 @@ export function MerchantCard({ merchant }: MerchantCardProps) {
       href={`/merchants/${merchant.slug}`}
       className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md active:bg-gray-50"
     >
-      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
-        {merchant.logo_url ? (
-          <Image
-            src={merchant.logo_url}
-            alt={merchant.name}
-            fill
-            className="object-cover"
-            sizes="64px"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-2xl text-gray-300">
-            🏪
-          </div>
-        )}
+      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-2xl text-gray-300">
+        🏪
       </div>
 
       <div className="min-w-0 flex-1">
-        <h2 className="truncate font-semibold text-gray-900">
-          {merchant.name}
-        </h2>
-        {merchant.description && (
-          <p className="mt-0.5 truncate text-sm text-gray-500">
-            {merchant.description}
+        <div className="flex items-center gap-2">
+          <h2 className="truncate font-semibold text-gray-900">
+            {merchant.name}
+          </h2>
+          {merchant.is_open !== undefined && (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                merchant.is_open
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {merchant.is_open ? "Açık" : "Kapalı"}
+            </span>
+          )}
+        </div>
+        {categoryLabel && (
+          <p className="mt-0.5 text-sm text-gray-500">{categoryLabel}</p>
+        )}
+        {merchant.address && (
+          <p className="mt-1 truncate text-xs text-gray-400">
+            {merchant.address}
           </p>
         )}
-        <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
-          {deliveryTime && <span>🕐 {deliveryTime}</span>}
-          {minOrder && <span>{minOrder}</span>}
-        </div>
       </div>
 
       <span className="flex-shrink-0 text-gray-300">›</span>

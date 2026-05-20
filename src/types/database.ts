@@ -37,22 +37,15 @@ export interface Database {
       merchants: {
         Row: {
           id: string;
-          /** Canonical FK to auth.users.id — used by all app queries */
           user_id: string;
-          /** Legacy FK to auth.users.id — retained for migration safety */
           owner_user_id: string;
           name: string;
           slug: string;
           category: string;
-          description: string | null;
-          logo_url: string | null;
-          phone: string | null;
-          email: string | null;
-          address: string | null;
+          address: string;
+          phone: string;
           is_active: boolean;
           is_open: boolean;
-          minimum_order_amount: number | null;
-          average_delivery_minutes: number | null;
           order_timeout_minutes: number;
           created_at: string;
           updated_at: string;
