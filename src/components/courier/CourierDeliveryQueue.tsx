@@ -45,10 +45,8 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
   const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
   // Must use the user's session access_token, not the anon key.
-  const { createBrowserClient } = await import("@/lib/supabase/client");
-  const supabase = createBrowserClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token;
+  const { getBrowserAccessToken } = await import("@/lib/supabase/access-token");
+  const accessToken = await getBrowserAccessToken();
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 

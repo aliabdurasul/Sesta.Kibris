@@ -23,6 +23,8 @@ export function createBrowserClient() {
     auth: {
       detectSessionInUrl: true,
       flowType: "pkce",
+      persistSession: true,
+      autoRefreshToken: true,
     },
   });
 }

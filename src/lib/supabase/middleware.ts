@@ -72,10 +72,23 @@ export async function updateSession(
     },
   });
 
-  // Refresh the session — do not remove this line
+  // Refresh session from cookies only — never trust in-memory client state
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  return { response: supabaseResponse, user };
+  // Stale refresh token → clear auth cookies to stop AuthApiError loops
+  if (userError) {
+    const msg = userError.message.toLowerCase();
+    if (
+      msg.includes("refresh token") ||
+      msg.includes("invalid") ||
+      userError.status === 401
+    ) {
+      await supabase.auth.signOut();
+    }
+  }
+
+  return { response: supabaseResponse, user: userError ? null : user };
 }

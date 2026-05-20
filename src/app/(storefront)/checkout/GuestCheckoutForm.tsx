@@ -14,6 +14,12 @@ import { useCartStore } from "@/lib/cart-store";
 const guestSchema = z.object({
   guestName: z.string().min(2, "Ad soyad zorunlu"),
   guestPhone: z.string().min(8, "Telefon zorunlu"),
+  guestEmail: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
+      message: "Geçerli e-posta girin",
+    }),
   fullAddress: z.string().min(10, "Adres en az 10 karakter olmalı"),
   district: z.string().min(2, "Mahalle / bölge zorunlu"),
   notes: z.string().optional(),
@@ -21,7 +27,11 @@ const guestSchema = z.object({
 
 type GuestForm = z.infer<typeof guestSchema>;
 
-export function GuestCheckoutForm() {
+interface Props {
+  guestUserId: string | null;
+}
+
+export function GuestCheckoutForm({ guestUserId }: Props) {
   const router = useRouter();
   const { items, merchantId, getTotal, clearCart } = useCartStore();
   const [submitting, setSubmitting] = useState(false);
@@ -42,6 +52,21 @@ export function GuestCheckoutForm() {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
         Yükleniyor...
+      </div>
+    );
+  }
+
+  if (!guestUserId) {
+    return (
+      <div className="rounded-2xl bg-amber-50 p-6 text-center text-sm text-amber-900 ring-1 ring-amber-200">
+        <p>Misafir oturumu başlatılamadı.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-3 text-blue-600 underline"
+        >
+          Sayfayı yenile
+        </button>
       </div>
     );
   }
@@ -85,8 +110,10 @@ export function GuestCheckoutForm() {
           district: data.district,
         },
         customer_notes: data.notes ?? null,
+        guest_user_id: guestUserId,
         guest_name: data.guestName.trim(),
         guest_phone: data.guestPhone.trim(),
+        guest_email: data.guestEmail?.trim() || null,
       };
 
       const res = await fetch(`${supabaseUrl}/functions/v1/create-order`, {
@@ -153,6 +180,16 @@ export function GuestCheckoutForm() {
           {errors.guestName && (
             <p className="mt-1 text-xs text-red-500">{errors.guestName.message}</p>
           )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            E-posta (opsiyonel)
+          </label>
+          <input
+            {...register("guestEmail")}
+            type="email"
+            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">

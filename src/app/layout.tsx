@@ -25,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr">
-      <body className="antialiased">
+    <html lang="tr" suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         {children}
         <script
           dangerouslySetInnerHTML={{

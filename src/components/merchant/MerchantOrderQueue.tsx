@@ -73,10 +73,8 @@ async function transitionOrder(
 
   // Must use the user's session access_token, not the anon key.
   // The anon key is a public API key — it is NOT a user JWT and will 401.
-  const { createBrowserClient } = await import("@/lib/supabase/client");
-  const supabase = createBrowserClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token;
+  const { getBrowserAccessToken } = await import("@/lib/supabase/access-token");
+  const accessToken = await getBrowserAccessToken();
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 

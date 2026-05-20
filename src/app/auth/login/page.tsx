@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getSession, getRoleHomePath } from "@/lib/auth";
+import { isSafeRedirectPath } from "@/lib/routing/safe-path";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -44,9 +45,15 @@ export default async function LoginPage({ searchParams }: PageProps) {
   // Guard: only redirect if the target path is not already where the session
   // would send us. This prevents the login page from participating in a loop
   // where the redirect target is the same as the inbound path.
+  const params = await searchParams;
+  const redirectTo = params.redirectTo ?? "";
+
   if (session) {
+    if (isSafeRedirectPath(redirectTo)) {
+      redirect(redirectTo);
+    }
+
     const target = getRoleHomePath(session.role);
-    // Read the path that brought the user here (set by middleware)
     const headersList = await headers();
     const inboundPath = headersList.get("x-pathname") ?? "/auth/login";
 
@@ -56,15 +63,12 @@ export default async function LoginPage({ searchParams }: PageProps) {
       );
     }
 
-    // Never redirect if we'd send the user back to where they came from
     if (!inboundPath.startsWith(target)) {
       redirect(target);
     }
   }
 
-  const params = await searchParams;
   const justRegistered = params.registered === "1";
-  const redirectTo = params.redirectTo ?? "";
   const callbackError = params.error === "callback";
 
   return (
@@ -95,6 +99,15 @@ export default async function LoginPage({ searchParams }: PageProps) {
         </div>
 
         <p className="mt-4 text-center text-sm text-gray-500">
+          <Link
+            href="/checkout"
+            className="font-medium text-gray-700 underline-offset-4 hover:underline"
+          >
+            Hesap olmadan devam et (misafir)
+          </Link>
+        </p>
+
+        <p className="mt-3 text-center text-sm text-gray-500">
           Hesabınız yok mu?{" "}
           <Link
             href="/auth/register"

@@ -32,8 +32,10 @@ interface RequestBody {
   delivery_address: DeliveryAddress;
   customer_notes?: string | null;
   notes?: string | null;
+  guest_user_id?: string | null;
   guest_name?: string | null;
   guest_phone?: string | null;
+  guest_email?: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -96,12 +98,20 @@ Deno.serve(async (req: Request) => {
     }
 
     let customerId: string | null = null;
+    let guestUserId: string | null = null;
     let guestName: string | null = null;
     let guestPhone: string | null = null;
 
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
     if (isGuest) {
+      guestUserId = body.guest_user_id?.trim() ?? null;
       guestName = body.guest_name?.trim() ?? null;
       guestPhone = body.guest_phone?.trim() ?? null;
+      if (!guestUserId || !uuidRe.test(guestUserId)) {
+        return json({ error: "Geçersiz misafir oturumu. Sayfayı yenileyin." }, 400);
+      }
       if (!guestName || !guestPhone) {
         return json(
           { error: "Misafir sipariş için ad ve telefon zorunludur." },
@@ -194,6 +204,7 @@ Deno.serve(async (req: Request) => {
         total_amount: totalAmount,
         delivery_address: delivery_address,
         customer_notes: customerNotes,
+        guest_user_id: guestUserId,
         guest_name: guestName,
         guest_phone: guestPhone,
       })

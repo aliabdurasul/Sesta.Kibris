@@ -1,12 +1,30 @@
 /**
- * POST /auth/signout — clears the session and redirects to home.
- * Called via a form with method="post" from any dashboard header.
+ * POST /auth/signout — clears Supabase session cookies and redirects home.
  */
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database";
 
-export async function POST(_request: NextRequest) {
-  const supabase = await createServerClient();
+export async function POST(request: NextRequest) {
+  const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"]!;
+  const supabaseAnonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!;
+
+  let response = NextResponse.redirect(new URL("/merchants", request.url));
+
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options),
+        );
+      },
+    },
+  });
+
   await supabase.auth.signOut();
-  return NextResponse.redirect(new URL("/", _request.url));
+
+  return response;
 }

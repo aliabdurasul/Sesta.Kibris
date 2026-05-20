@@ -10,6 +10,7 @@
  * The actual order creation calls /functions/v1/create-order Edge Function.
  */
 import { getSession } from "@/lib/auth";
+import { getGuestUserIdFromCookies } from "@/lib/guest/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { CheckoutForm } from "./CheckoutForm";
 import { GuestCheckoutForm } from "./GuestCheckoutForm";
@@ -56,6 +57,8 @@ export default async function CheckoutPage() {
 
   // ── Guest → full checkout without account ─────────────────────────────────
   if (!session) {
+    const guestUserId = await getGuestUserIdFromCookies();
+
     return (
       <main className="min-h-screen bg-gray-50 px-4 py-6">
         <div className="mx-auto max-w-xl">
@@ -68,7 +71,7 @@ export default async function CheckoutPage() {
             </Link>
             <h1 className="text-xl font-bold text-gray-900">Sipariş Ver</h1>
           </div>
-          <GuestCheckoutForm />
+          <GuestCheckoutForm guestUserId={guestUserId} />
         </div>
       </main>
     );

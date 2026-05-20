@@ -29,12 +29,20 @@ export default async function StorefrontLayout({
               Panelim →
             </a>
           ) : (
-            <a
-              href="/auth/login"
-              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-            >
-              Giriş Yap
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="/checkout"
+                className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+              >
+                Misafir
+              </a>
+              <a
+                href="/auth/login"
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                Giriş
+              </a>
+            </div>
           )}
         </div>
       </header>

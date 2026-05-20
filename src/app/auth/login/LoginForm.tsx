@@ -1,15 +1,9 @@
 "use client";
 
 /**
- * Login form client component.
- * Handles form state + error display.
- * Submits via Server Action (loginAction).
- *
- * redirectTo: hidden input forwarded to Server Action.
- * loginAction redirects to this path after successful login
- * if it is a safe internal path (e.g. /checkout).
+ * Login form — single submit per click; session via Server Action cookies only.
  */
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { loginAction } from "./actions";
 
 type ActionState = { error: string } | null;
@@ -19,14 +13,29 @@ interface Props {
 }
 
 export function LoginForm({ redirectTo }: Props) {
+  const submitLock = useRef(false);
   const [state, formAction, isPending] = useActionState<ActionState, FormData>(
     loginAction as (state: ActionState, payload: FormData) => Promise<ActionState>,
     null,
   );
 
+  useEffect(() => {
+    if (state?.error) {
+      submitLock.current = false;
+    }
+  }, [state]);
+
+  const locked = isPending || submitLock.current;
+
   return (
-    <form action={formAction} className="space-y-4">
-      {/* Hidden field — carries redirectTo through the Server Action */}
+    <form
+      action={formAction}
+      className="space-y-4"
+      onSubmit={() => {
+        if (submitLock.current) return;
+        submitLock.current = true;
+      }}
+    >
       {redirectTo && (
         <input type="hidden" name="redirectTo" value={redirectTo} />
       )}
@@ -53,7 +62,7 @@ export function LoginForm({ redirectTo }: Props) {
           type="email"
           autoComplete="email"
           required
-          disabled={isPending}
+          disabled={locked}
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
           placeholder="ornek@email.com"
         />
@@ -72,7 +81,7 @@ export function LoginForm({ redirectTo }: Props) {
           type="password"
           autoComplete="current-password"
           required
-          disabled={isPending}
+          disabled={locked}
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
           placeholder="••••••••"
         />
@@ -80,10 +89,11 @@ export function LoginForm({ redirectTo }: Props) {
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={locked}
+        aria-busy={locked}
         className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
+        {locked ? "Giriş yapılıyor..." : "Giriş Yap"}
       </button>
     </form>
   );

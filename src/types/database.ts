@@ -154,6 +154,7 @@ export interface Database {
           delivery_address: Json;
           customer_notes: string | null;
           merchant_notes: string | null;
+          guest_user_id: string | null;
           guest_name: string | null;
           guest_phone: string | null;
           rejection_reason: string | null;

@@ -109,11 +109,8 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
         throw new Error("Yapılandırma hatası.");
       }
 
-      // Get the user's real session JWT — anon key is NOT a valid user token
-      const { createBrowserClient } = await import("@/lib/supabase/client");
-      const supabase = createBrowserClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
+      const { getBrowserAccessToken } = await import("@/lib/supabase/access-token");
+      const accessToken = await getBrowserAccessToken();
 
       if (!accessToken) {
         throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");

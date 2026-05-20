@@ -20,6 +20,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { userMustChangePassword } from "@/lib/auth/password-change";
+import {
+  GUEST_USER_ID_COOKIE,
+  guestCookieOptions,
+  isValidGuestUserId,
+  newGuestUserId,
+} from "@/lib/guest/session";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -39,6 +45,8 @@ const PUBLIC_PREFIXES = [
   "/merchants",
   "/markets",
   "/checkout",
+  "/cart",
+  "/payment-init",
   "/offline",
   "/setup-admin",
 ];
@@ -63,6 +71,19 @@ function isPublicPath(pathname: string): boolean {
 
 const ROOT_WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** Persist anonymous guest id when no Supabase session (checkout traceability). */
+function ensureGuestCookie(
+  request: NextRequest,
+  response: NextResponse,
+  hasAuthUser: boolean,
+): NextResponse {
+  if (hasAuthUser) return response;
+  const existing = request.cookies.get(GUEST_USER_ID_COOKIE)?.value;
+  if (isValidGuestUserId(existing)) return response;
+  response.cookies.set(GUEST_USER_ID_COOKIE, newGuestUserId(), guestCookieOptions());
+  return response;
+}
+
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -81,7 +102,9 @@ export default async function middleware(request: NextRequest) {
   if (isPublicPath(pathname)) {
     const result = await updateSession(request, pathnameHeader);
     if (result instanceof NextResponse) return result;
-    if ("response" in result) return result.response;
+    if ("response" in result) {
+      return ensureGuestCookie(request, result.response, !!result.user);
+    }
     return NextResponse.next();
   }
 
@@ -91,13 +114,14 @@ export default async function middleware(request: NextRequest) {
     return result instanceof NextResponse ? result : NextResponse.next();
   }
 
-  const { response, user } = result;
+  let { response, user } = result;
+  response = ensureGuestCookie(request, response, !!user);
 
   const gated = protectedMatch(pathname);
 
   // ── Not a protected dashboard route — never redirect by role ─────────────
   if (!gated) {
-    return response;
+    return ensureGuestCookie(request, response, !!user);
   }
 
   const requiredRole = gated.role;

@@ -17,20 +17,14 @@
  * Admin accounts are created via /setup-admin (first-run wizard).
  * Subsequent admins are managed via the admin panel.
  */
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveUserRole, getRoleHomePath, userMustChangePassword } from "@/lib/auth";
+import { isSafeRedirectPath } from "@/lib/routing/safe-path";
 import { log } from "@/lib/logger";
 
 type ActionState = { error: string } | null;
-
-/** Validates that a redirectTo path is safe (internal, no open redirect). */
-function isSafePath(path: string | null | undefined): path is string {
-  if (!path) return false;
-  // Must be a relative path starting with /
-  // Reject // (protocol-relative) and non-path strings
-  return path.startsWith("/") && !path.startsWith("//");
-}
 
 export async function loginAction(
   _prevState: ActionState,
@@ -46,7 +40,21 @@ export async function loginAction(
 
   const supabase = await createServerClient();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
+  // Already signed in — skip duplicate signInWithPassword (prevents double POST)
+  const { data: existingUserData } = await supabase.auth.getUser();
+  const existingUser = existingUserData.user;
+  if (existingUser) {
+    const existingResolved = await resolveUserRole(
+      existingUser.id,
+      existingUser.app_metadata as Record<string, string> | undefined,
+    );
+    if (existingResolved) {
+      if (isSafeRedirectPath(redirectTo)) redirect(redirectTo);
+      redirect(getRoleHomePath(existingResolved.role));
+    }
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -55,7 +63,18 @@ export async function loginAction(
     return { error: "E-posta veya şifre hatalı." };
   }
 
-  const authUser = data.user;
+  const {
+    data: { user: confirmedUser },
+    error: confirmError,
+  } = await supabase.auth.getUser();
+
+  if (confirmError || !confirmedUser) {
+    log.error("login.session_not_persisted", { email, reason: confirmError?.message });
+    return { error: "Oturum oluşturulamadı. Lütfen tekrar deneyin." };
+  }
+
+  const authUser = confirmedUser;
+  revalidatePath("/", "layout");
 
   if (userMustChangePassword(authUser)) {
     log.info("login.password_change_required", { userId: authUser.id });
@@ -76,7 +95,7 @@ export async function loginAction(
 
   // Use redirectTo if it is a safe internal path.
   // This honours ?redirectTo=/checkout from the checkout auth gate.
-  if (isSafePath(redirectTo)) {
+  if (isSafeRedirectPath(redirectTo)) {
     redirect(redirectTo);
   }
 
