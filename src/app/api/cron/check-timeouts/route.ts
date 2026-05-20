@@ -25,6 +25,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { log } from "@/lib/logger";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -89,9 +90,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (secondsSinceLastRun < MIN_RUN_INTERVAL_SECONDS) {
     const retryAfter = Math.ceil(MIN_RUN_INTERVAL_SECONDS - secondsSinceLastRun);
-    console.warn(
-      `[cron] Skipped — last run was ${Math.floor(secondsSinceLastRun)}s ago (min interval: ${MIN_RUN_INTERVAL_SECONDS}s)`,
-    );
+    log.warn("cron.check_timeouts.skipped_too_soon", {
+      secondsSinceLastRun: Math.floor(secondsSinceLastRun),
+      minInterval: MIN_RUN_INTERVAL_SECONDS,
+    });
     return json(
       {
         skipped: true,
@@ -136,9 +138,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const scanned = timedOut?.length ?? 0;
 
-  console.log(
-    `[cron] Scanned ${scanned} PENDING orders older than ${PENDING_TIMEOUT_MINUTES} minutes`,
-  );
+  log.info("cron.check_timeouts.scanned", {
+    scanned,
+    timeoutMinutes: PENDING_TIMEOUT_MINUTES,
+  });
 
   if (scanned === 0) {
     // Update observability counters even on no-op run
@@ -176,7 +179,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const cancelledIds = (updatedOrders ?? []).map((o: { id: string }) => o.id);
   const cancelled = cancelledIds.length;
 
-  console.log(`[cron] Cancelled ${cancelled} orders out of ${scanned} candidates`);
+  log.info("cron.check_timeouts.cancelled", { scanned, cancelled });
 
   // ── 6. Append status log for each actually-cancelled order ───────────────
   if (cancelled > 0) {
@@ -207,7 +210,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .eq("job_name", JOB_NAME);
 
   const executionMs = Date.now() - startMs;
-  console.log(`[cron] Done in ${executionMs}ms — scanned: ${scanned}, cancelled: ${cancelled}`);
+  log.info("cron.check_timeouts.done", { scanned, cancelled, executionMs });
 
   return json({
     ok: true,

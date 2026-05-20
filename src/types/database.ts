@@ -77,6 +77,8 @@ export interface Database {
           image_url: string | null;
           category: string | null;
           is_available: boolean;
+          /** Controls storefront visibility. Distinct from is_available (stock status). */
+          is_active: boolean;
           sort_order: number | null;
           created_at: string;
           updated_at: string;

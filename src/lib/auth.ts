@@ -14,6 +14,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createServerClient } from "@/lib/supabase/server";
 import { roleHome } from "@/lib/routing/role-home";
+import { log } from "@/lib/logger";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -164,7 +165,7 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   // No session → login
   if (error || !user) {
     if (IS_DEV) {
-      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | no user → /auth/login`);
+      log.info("auth.require_role.no_user", { role: allowedRole, path: currentPath });
     }
     redirect("/auth/login");
   }
@@ -174,15 +175,18 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   const resolved = await resolveUserRole(user.id, meta);
 
   if (IS_DEV) {
-    console.log(
-      `[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | jwt=${jwtRole ?? "null"} | resolved=${resolved?.role ?? "null"}`,
-    );
+    log.info("auth.require_role.resolved", {
+      role: allowedRole,
+      path: currentPath,
+      jwtRole: jwtRole ?? null,
+      resolvedRole: resolved?.role ?? null,
+    });
   }
 
   // Authenticated but no role anywhere → recovery page
   if (!resolved) {
     if (IS_DEV) {
-      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | no role → /auth/role-recovery`);
+      log.info("auth.require_role.no_role", { role: allowedRole, path: currentPath });
     }
     redirect("/auth/role-recovery");
   }
@@ -192,7 +196,7 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   // middleware gets correct app_metadata on subsequent requests.
   if (!jwtRole && resolved.role) {
     if (IS_DEV) {
-      console.log(`[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | stale JWT → refreshSession()`);
+      log.info("auth.require_role.stale_jwt", { role: allowedRole, path: currentPath });
     }
     try {
       await supabase.auth.refreshSession();
@@ -211,9 +215,13 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
       currentPath === target || currentPath.startsWith(target + "/");
 
     if (IS_DEV) {
-      console.log(
-        `[AUTH TRACE] requireRole(${allowedRole}) | path=${currentPath} | role mismatch: resolved=${resolved.role} | target=${target} | alreadyThere=${alreadyThere}`,
-      );
+      log.info("auth.require_role.mismatch", {
+        required: allowedRole,
+        resolved: resolved.role,
+        path: currentPath,
+        target,
+        alreadyThere,
+      });
     }
 
     if (alreadyThere) {

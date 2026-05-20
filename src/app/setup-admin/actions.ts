@@ -20,11 +20,11 @@ import { randomBytes } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
+import type { SetupAdminState } from "./types";
 
-export type SetupAdminState =
-  | { status: "idle" }
-  | { status: "success"; email: string; temporaryPassword: string }
-  | { status: "error"; message: string };
+// Re-export so callers that previously imported from this file still compile.
+// Client components import the type from ./types directly.
+export type { SetupAdminState } from "./types";
 
 function createAdminClient() {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
