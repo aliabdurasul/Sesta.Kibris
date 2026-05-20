@@ -24,14 +24,22 @@ async function getMerchantProducts(userId: string) {
 
   const { data: productsData } = await supabase
     .from("products")
-    .select("id, name, description, price, unit, category, is_available, sort_order")
+    .select(
+      "id, name, description, price, unit, is_available, display_order, stock_count",
+    )
     .eq("merchant_id", merchant.id)
-    .order("category")
-    .order("sort_order");
+    .order("display_order");
 
   const products = (productsData ?? []) as Pick<
     ProductRow,
-    "id" | "name" | "description" | "price" | "unit" | "category" | "is_available" | "sort_order"
+    | "id"
+    | "name"
+    | "description"
+    | "price"
+    | "unit"
+    | "is_available"
+    | "display_order"
+    | "stock_count"
   >[];
 
 

@@ -72,14 +72,14 @@ export interface Database {
           merchant_id: string;
           name: string;
           description: string | null;
+          /** Price in kuruş (1/100 TL) */
           price: number;
           unit: string;
-          image_url: string | null;
-          category: string | null;
+          /** NULL = unlimited stock */
+          stock_count: number | null;
           is_available: boolean;
-          /** Controls storefront visibility. Distinct from is_available (stock status). */
-          is_active: boolean;
-          sort_order: number | null;
+          image_url: string | null;
+          display_order: number;
           created_at: string;
           updated_at: string;
         };

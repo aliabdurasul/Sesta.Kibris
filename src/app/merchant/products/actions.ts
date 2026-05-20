@@ -3,30 +3,48 @@
 /**
  * Server Actions for merchant product management.
  *
- * RULES FOR "use server" FILES:
- *   - ONLY async function exports are allowed.
- *   - Do NOT export: interfaces, types, constants, runtime config.
- *   - Types used by callers must be defined in a separate non-server file
- *     and imported by both sides.
- *
- * Security:
- *   requireRole("merchant") enforces auth on every call.
- *   merchant_id is resolved from session — never trusted from client.
+ * DB schema (migration 00002_create_products) is the single source of truth.
+ * Never send columns that are not present on the products table.
  */
-
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { log } from "@/lib/logger";
+import type { Database } from "@/types/database";
+
+type ProductInsert = Database["public"]["Tables"]["products"]["Insert"];
+
+const PRODUCT_INSERT_KEYS = [
+  "merchant_id",
+  "name",
+  "description",
+  "price",
+  "unit",
+  "stock_count",
+  "is_available",
+  "image_url",
+  "display_order",
+] as const satisfies readonly (keyof ProductInsert)[];
+
+function assertProductInsertPayload(
+  payload: Record<string, unknown>,
+): asserts payload is ProductInsert {
+  for (const key of Object.keys(payload)) {
+    if (!PRODUCT_INSERT_KEYS.includes(key as (typeof PRODUCT_INSERT_KEYS)[number])) {
+      throw new Error(`[SCHEMA_MISMATCH] Invalid column: ${key}`);
+    }
+  }
+}
 
 export async function createProduct(input: {
   name: string;
   price: number;
   unit: string;
   description?: string;
-  category?: string;
+  stock_count?: number;
+  image_url?: string;
+  display_order?: number;
 }): Promise<{ success: true; id: string }> {
-  // ── Auth guard — resolves merchantId from session ────────────────────────
   const session = await requireRole("merchant");
 
   log.info("product.create.start", {
@@ -38,35 +56,38 @@ export async function createProduct(input: {
 
   if (!session.merchantId) {
     log.error("product.create.no_merchant", { userId: session.id });
-    throw new Error("Merchant kaydı bulunamadı. Lütfen yöneticinizle iletişime geçin.");
+    throw new Error(
+      "Merchant kaydı bulunamadı. Lütfen yöneticinizle iletişime geçin.",
+    );
   }
 
-  // ── Validate required fields before hitting DB ───────────────────────────
   if (!input.name.trim()) throw new Error("Ürün adı zorunludur.");
   if (!input.unit.trim()) throw new Error("Birim zorunludur.");
   if (!Number.isFinite(input.price) || input.price <= 0) {
     throw new Error("Geçerli bir fiyat giriniz.");
   }
 
+  const payload: ProductInsert = {
+    merchant_id: session.merchantId,
+    name: input.name.trim(),
+    description: input.description?.trim() || null,
+    price: Number(input.price),
+    unit: input.unit.trim(),
+    stock_count: input.stock_count ?? null,
+    is_available: true,
+    image_url: input.image_url?.trim() || null,
+    display_order: input.display_order ?? 0,
+  };
+
+  assertProductInsertPayload(payload as Record<string, unknown>);
+
   const supabase = await createServerClient();
 
-  // ── Insert ───────────────────────────────────────────────────────────────
-  // .single() throws a PostgREST error if the row cannot be read back
-  // (e.g. RLS blocks read-after-write), surfacing the exact failure reason.
-  // .maybeSingle() would silently return null, masking the error.
   const { data, error } = await supabase
     .from("products")
-    .insert({
-      merchant_id: session.merchantId,
-      name: input.name.trim(),
-      price: input.price,
-      unit: input.unit.trim(),
-      description: input.description?.trim() || null,
-      category: input.category?.trim() || null,
-      is_available: true,
-      is_active: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any)
+    // Payload validated above; cast needed until Supabase Insert inference is regenerated
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .insert(payload as any)
     .select("id")
     .single();
 
@@ -92,7 +113,6 @@ export async function createProduct(input: {
     productId: id,
   });
 
-  // Revalidate the products page so the server-rendered list reflects the insert.
   revalidatePath("/merchant/products");
 
   return { success: true, id };

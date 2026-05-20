@@ -108,7 +108,6 @@ export function ProductManager({ initialProducts, merchantId }: Props) {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-gray-900">{product.name}</p>
               <div className="flex gap-3 text-xs text-gray-400">
-                {product.category && <span>{product.category}</span>}
                 <span>
                   {product.price !== undefined
                     ? `${(product.price / 100).toFixed(2)} ₺`
@@ -162,7 +161,6 @@ function AddProductForm({ onAdded, onCancel }: AddProductFormProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [unit, setUnit] = useState<string>(DEFAULT_UNIT);
-  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,19 +191,16 @@ function AddProductForm({ onAdded, onCancel }: AddProductFormProps) {
         price: priceKurus,
         unit,
         description: description.trim() || undefined,
-        category: category.trim() || undefined,
       });
 
-      // Pass optimistic product back to parent for instant list update.
-      // Unit shown immediately; server is the source of truth for id/timestamps.
       onAdded({
         id: result.id,
         name: name.trim(),
         price: priceKurus,
         unit,
-        category: category.trim() || null,
         description: description.trim() || null,
         is_available: true,
+        display_order: 0,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ürün eklenemedi.");
@@ -265,13 +260,6 @@ function AddProductForm({ onAdded, onCancel }: AddProductFormProps) {
             ))}
           </select>
         </div>
-
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Kategori (opsiyonel)"
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
-        />
 
         <textarea
           value={description}

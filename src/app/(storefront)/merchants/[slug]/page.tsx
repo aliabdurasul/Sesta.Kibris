@@ -33,9 +33,8 @@ type ProductItem = Pick<
   | "description"
   | "price"
   | "image_url"
-  | "category"
   | "is_available"
-  | "sort_order"
+  | "display_order"
 >;
 
 interface PageProps {
@@ -70,12 +69,11 @@ async function getMerchantWithProducts(slug: string) {
     const productsRes = await supabase
       .from("products")
       .select(
-        "id, name, description, price, image_url, category, is_available, sort_order",
+        "id, name, description, price, image_url, is_available, display_order",
       )
       .eq("merchant_id", merchant.id)
       .eq("is_available", true)
-      .order("category")
-      .order("sort_order");
+      .order("display_order");
 
     if (productsRes.error) {
       log.error("merchant.products.fetch", {

@@ -23,6 +23,7 @@
 
 DROP POLICY IF EXISTS merchants_admin_all ON merchants;
 CREATE POLICY merchants_admin_all ON merchants
+
   FOR ALL
   USING (public.user_role() = 'admin')
   WITH CHECK (public.user_role() = 'admin');
