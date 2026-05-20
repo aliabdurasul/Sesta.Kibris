@@ -40,13 +40,14 @@ export interface LiveOrder {
   status: OrderStatus;
   total_amount: number;
   delivery_address: unknown;
-  notes: string | null;
+  customer_notes: string | null;
   created_at: string;
   order_items: {
     id: string;
     quantity: number;
     unit_price: number;
-    snapshot: unknown;
+    product_name: string;
+    line_total: number;
   }[];
 }
 
@@ -75,7 +76,7 @@ export function useOrderSubscription({
   const fetchOrders = useCallback(async () => {
     const { data } = await supabaseRef.current
       .from("orders")
-      .select("id, status, total_amount, delivery_address, notes, created_at, order_items(id, quantity, unit_price, snapshot)")
+      .select("id, status, total_amount, delivery_address, customer_notes, created_at, order_items(id, quantity, unit_price, product_name, line_total)")
       .eq("merchant_id", merchantId)
       .in("status", activeStatusesRef.current)
       .order("created_at", { ascending: true });

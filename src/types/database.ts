@@ -46,6 +46,7 @@ export interface Database {
           phone: string;
           is_active: boolean;
           is_open: boolean;
+          minimum_order_amount: number | null;
           order_timeout_minutes: number;
           created_at: string;
           updated_at: string;
@@ -144,19 +145,27 @@ export interface Database {
       orders: {
         Row: {
           id: string;
-          customer_id: string;
+          /** Nullable for guest checkout (migration 00019) */
+          customer_id: string | null;
           merchant_id: string;
           courier_id: string | null;
           status: OrderStatus;
           total_amount: number;
           delivery_address: Json;
-          notes: string | null;
+          customer_notes: string | null;
+          merchant_notes: string | null;
+          guest_name: string | null;
+          guest_phone: string | null;
           rejection_reason: string | null;
+          failure_reason: string | null;
           created_at: string;
-          updated_at: string;
+          accepted_at: string | null;
+          ready_at: string | null;
+          assigned_at: string | null;
+          picked_up_at: string | null;
+          delivered_at: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["orders"]["Row"]> & {
-          customer_id: string;
           merchant_id: string;
           status: OrderStatus;
           total_amount: number;
@@ -168,16 +177,19 @@ export interface Database {
         Row: {
           id: string;
           order_id: string;
-          product_id: string | null;
-          quantity: number;
+          product_id: string;
+          product_name: string;
           unit_price: number;
-          snapshot: Json | null;
-          created_at: string;
+          quantity: number;
+          line_total: number;
         };
         Insert: Partial<Database["public"]["Tables"]["order_items"]["Row"]> & {
           order_id: string;
-          quantity: number;
+          product_id: string;
+          product_name: string;
           unit_price: number;
+          quantity: number;
+          line_total: number;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
       };

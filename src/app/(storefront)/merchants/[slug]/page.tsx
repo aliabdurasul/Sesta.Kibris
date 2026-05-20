@@ -49,8 +49,8 @@ async function getActiveOrders(merchantId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, delivery_address, notes, created_at,
-       order_items(id, quantity, unit_price, snapshot)`,
+      `id, status, total_amount, delivery_address, customer_notes, created_at,
+       order_items(id, quantity, unit_price, product_name, line_total)`,
     )
     .eq("merchant_id", merchantId)
     .in("status", ["PENDING", "CONFIRMED", "READY"])
@@ -62,12 +62,12 @@ async function getActiveOrders(merchantId: string) {
     | "status"
     | "total_amount"
     | "delivery_address"
-    | "notes"
+    | "customer_notes"
     | "created_at"
   > & {
     order_items: Pick<
       OrderItemRow,
-      "id" | "quantity" | "unit_price" | "snapshot"
+      "id" | "quantity" | "unit_price" | "product_name" | "line_total"
     >[];
   })[];
 }

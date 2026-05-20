@@ -57,7 +57,7 @@ async function assignCourierViaEdgeFunction(
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

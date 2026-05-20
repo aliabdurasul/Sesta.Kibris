@@ -20,7 +20,8 @@ interface OrderMerchant {
 interface OrderItemData {
   id: string;
   quantity: number;
-  snapshot: Json | null;
+  product_name: string;
+  line_total: number;
 }
 
 interface Order {
@@ -28,7 +29,7 @@ interface Order {
   status: "ASSIGNED" | "IN_TRANSIT";
   total_amount: number;
   delivery_address: Json;
-  notes: string | null;
+  customer_notes: string | null;
   created_at: string;
   merchants: OrderMerchant | null;
   order_items: OrderItemData[];
@@ -51,7 +52,7 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -205,9 +206,9 @@ export function CourierDeliveryQueue({
               )}
             </div>
 
-            {order.notes && (
+            {order.customer_notes && (
               <p className="mb-3 text-xs text-gray-400 italic">
-                Not: {order.notes}
+                Not: {order.customer_notes}
               </p>
             )}
 

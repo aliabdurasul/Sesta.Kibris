@@ -92,8 +92,8 @@ export async function createMerchantAction(
       category,
       address,
       phone,
-      is_active: false,
-      is_open: false,
+      is_active: true,
+      is_open: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")

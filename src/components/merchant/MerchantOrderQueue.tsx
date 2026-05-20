@@ -14,7 +14,8 @@ interface OrderItem {
   id: string;
   quantity: number;
   unit_price: number;
-  snapshot: Json | null;
+  product_name: string;
+  line_total: number;
 }
 
 interface Order {
@@ -22,7 +23,7 @@ interface Order {
   status: OrderStatus;
   total_amount: number;
   delivery_address: Json;
-  notes: string | null;
+  customer_notes: string | null;
   created_at: string;
   order_items: OrderItem[];
 }
@@ -79,7 +80,7 @@ async function transitionOrder(
 
   if (!accessToken) throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
 
-  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order-status`, {
+  const res = await fetch(`${supabaseUrl}/functions/v1/transition-order`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -183,24 +184,19 @@ export function MerchantOrderQueue({ initialOrders, merchantId }: Props) {
 
             {/* Items */}
             <ul className="mb-3 space-y-1">
-              {items.map((item) => {
-                const snap = item.snapshot as
-                  | Record<string, string>
-                  | null;
-                return (
+              {items.map((item) => (
                   <li
                     key={item.id}
                     className="flex justify-between text-sm text-gray-700"
                   >
                     <span>
-                      {snap?.["name"] ?? "Ürün"} × {item.quantity}
+                      {item.product_name} × {item.quantity}
                     </span>
                     <span className="text-gray-500">
-                      {((item.unit_price * item.quantity) / 100).toFixed(2)} ₺
+                      {(item.line_total / 100).toFixed(2)} ₺
                     </span>
                   </li>
-                );
-              })}
+                ))}
             </ul>
 
             <div className="flex justify-between border-t border-gray-100 pt-2 text-sm font-bold text-gray-900">
@@ -214,9 +210,9 @@ export function MerchantOrderQueue({ initialOrders, merchantId }: Props) {
               </p>
             )}
 
-            {order.notes && (
+            {order.customer_notes && (
               <p className="mt-1 text-xs text-gray-500 italic">
-                Not: {order.notes}
+                Not: {order.customer_notes}
               </p>
             )}
 

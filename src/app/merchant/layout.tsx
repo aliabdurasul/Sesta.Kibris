@@ -10,6 +10,7 @@
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { MerchantNav } from "@/components/merchant/MerchantNav";
+import { MerchantOpenToggle } from "@/components/merchant/MerchantOpenToggle";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
@@ -83,15 +84,10 @@ export default async function MerchantLayout({
             <p className="text-xs text-gray-400">Market Paneli</p>
             <h1 className="font-bold text-gray-900">{merchant.name}</h1>
           </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              merchant.is_open
-                ? "bg-green-100 text-green-700"
-                : "bg-gray-100 text-gray-500"
-            }`}
-          >
-            {merchant.is_open ? "Açık" : "Kapalı"}
-          </span>
+          <MerchantOpenToggle
+            isOpen={merchant.is_open}
+            isActive={merchant.is_active}
+          />
         </div>
       </header>
       <main className="flex-1 px-4 pb-24 pt-4">{children}</main>

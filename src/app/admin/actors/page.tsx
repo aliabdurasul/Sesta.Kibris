@@ -5,6 +5,7 @@
  */
 import { createAdminServerClient } from "@/lib/supabase/admin";
 import Link from "next/link";
+import { MerchantAdminToggles } from "@/components/admin/MerchantAdminToggles";
 import type { Database } from "@/types/database";
 
 type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
@@ -108,26 +109,11 @@ export default async function ActorsPage({ searchParams }: PageProps) {
                   <p className="text-sm font-medium text-gray-900">{m.name}</p>
                   <p className="text-xs text-gray-400">/{m.slug}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      m.is_open
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {m.is_open ? "Açık" : "Kapalı"}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      m.is_active
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                  >
-                    {m.is_active ? "Aktif" : "Pasif"}
-                  </span>
-                </div>
+                <MerchantAdminToggles
+                  merchantId={m.id}
+                  isActive={m.is_active}
+                  isOpen={m.is_open}
+                />
               </div>
             ))}
           </div>

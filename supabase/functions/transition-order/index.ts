@@ -65,12 +65,17 @@ const VALID_TRANSITIONS: Record<
 interface RequestBody {
   order_id: string;
   new_status: OrderStatus;
+  courier_id?: string | null;
   note?: string | null;
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
   }
 
   try {
@@ -100,7 +105,7 @@ Deno.serve(async (req: Request) => {
 
     // Parse body
     const body = (await req.json()) as RequestBody;
-    const { order_id, new_status, note } = body;
+    const { order_id, new_status, courier_id, note } = body;
 
     if (!order_id || !new_status) {
       return json({ error: "order_id ve new_status zorunludur." }, 400);
@@ -176,10 +181,20 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Update order status
+    if (new_status === "ASSIGNED" && actorRole === "admin" && !courier_id) {
+      return json({ error: "Kurye ataması için courier_id zorunludur." }, 400);
+    }
+
+    const orderUpdate: { status: OrderStatus; courier_id?: string } = {
+      status: new_status,
+    };
+    if (new_status === "ASSIGNED" && courier_id) {
+      orderUpdate.courier_id = courier_id;
+    }
+
     const { error: updateError } = await admin
       .from("orders")
-      .update({ status: new_status })
+      .update(orderUpdate)
       .eq("id", order_id);
 
     if (updateError) {
@@ -187,10 +202,10 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Durum güncellenemedi." }, 500);
     }
 
-    // Append to status log (append-only)
     await admin.from("order_status_log").insert({
       order_id,
-      status: new_status,
+      from_status: currentStatus,
+      to_status: new_status,
       actor_role: actorRole,
       actor_id: user.id,
       note: note ?? null,

@@ -1,17 +1,11 @@
 /**
  * Edge Function: POST /functions/v1/create-order
  *
- * Responsibilities:
- * 1. Authenticate the calling user (must be role=customer)
- * 2. Validate request body
- * 3. Re-fetch product prices from DB (never trust client prices)
- * 4. Validate minimum_order_amount
- * 5. Snapshot product data into order_items
- * 6. Create order with status=PENDING
- * 7. Append first status log entry
- * 8. Return { order_id }
+ * Supports:
+ *   - Authenticated customer (JWT role=customer)
+ *   - Guest checkout (no JWT; guest_name + guest_phone required)
  *
- * CRITICAL: Total is ALWAYS calculated server-side from current DB prices.
+ * Schema aligned with migrations 00006, 00007, 00008.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -19,6 +13,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface OrderItem {
@@ -35,7 +30,10 @@ interface RequestBody {
   merchant_id: string;
   items: OrderItem[];
   delivery_address: DeliveryAddress;
+  customer_notes?: string | null;
   notes?: string | null;
+  guest_name?: string | null;
+  guest_phone?: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,39 +41,49 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    // 1. Auth — use service role for writes, user JWT for identity
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ error: "Kimlik doğrulama gerekli." }, 401);
-    }
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
 
+  try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify user JWT
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser();
+    const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    if (authError || !user) {
-      return json({ error: "Geçersiz oturum." }, 401);
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    let isGuest = true;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const {
+        data: { user },
+        error: authError,
+      } = await userClient.auth.getUser();
+
+      if (!authError && user) {
+        const userRole = (
+          user.app_metadata as Record<string, string> | undefined
+        )?.["role"];
+        if (userRole === "customer") {
+          userId = user.id;
+          isGuest = false;
+        } else if (userRole) {
+          return json(
+            { error: "Yalnızca müşteriler veya misafirler sipariş verebilir." },
+            403,
+          );
+        }
+      }
     }
 
-    const userRole =
-      (user.app_metadata as Record<string, string> | undefined)?.["role"];
-    if (userRole !== "customer") {
-      return json({ error: "Yalnızca müşteriler sipariş verebilir." }, 403);
-    }
-
-    // 2. Parse body
     const body = (await req.json()) as RequestBody;
-    const { merchant_id, items, delivery_address, notes } = body;
+    const { merchant_id, items, delivery_address } = body;
+    const customerNotes = body.customer_notes ?? body.notes ?? null;
 
     if (
       !merchant_id ||
@@ -87,26 +95,39 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Eksik veya hatalı sipariş verisi." }, 400);
     }
 
-    // 3. Service role client for all writes
-    const admin = createClient(supabaseUrl, serviceRoleKey);
+    let customerId: string | null = null;
+    let guestName: string | null = null;
+    let guestPhone: string | null = null;
 
-    // 4. Fetch customer record
-    const { data: customer, error: customerError } = await admin
-      .from("customers")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    if (isGuest) {
+      guestName = body.guest_name?.trim() ?? null;
+      guestPhone = body.guest_phone?.trim() ?? null;
+      if (!guestName || !guestPhone) {
+        return json(
+          { error: "Misafir sipariş için ad ve telefon zorunludur." },
+          400,
+        );
+      }
+    } else if (userId) {
+      const { data: customer, error: customerError } = await admin
+        .from("customers")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (customerError || !customer) {
-      return json({ error: "Müşteri kaydı bulunamadı." }, 404);
+      if (customerError || !customer) {
+        return json({ error: "Müşteri kaydı bulunamadı." }, 404);
+      }
+      customerId = customer.id;
+    } else {
+      return json({ error: "Kimlik doğrulama gerekli veya misafir bilgisi girin." }, 401);
     }
 
-    // 5. Fetch merchant
     const { data: merchant, error: merchantError } = await admin
       .from("merchants")
       .select("id, minimum_order_amount, is_active, is_open")
       .eq("id", merchant_id)
-      .single();
+      .maybeSingle();
 
     if (merchantError || !merchant || !merchant.is_active) {
       return json({ error: "Market bulunamadı veya aktif değil." }, 404);
@@ -116,7 +137,6 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Bu market şu an siparişe kapalı." }, 400);
     }
 
-    // 6. Fetch and validate products — re-fetch from DB, never trust client prices
     const productIds = items.map((i: OrderItem) => i.product_id);
     const { data: products, error: productsError } = await admin
       .from("products")
@@ -124,13 +144,12 @@ Deno.serve(async (req: Request) => {
       .in("id", productIds)
       .eq("merchant_id", merchant_id);
 
-    if (productsError) {
+    if (productsError || !products?.length) {
       return json({ error: "Ürünler yüklenemedi." }, 500);
     }
 
-    // Validate every requested product
     for (const item of items) {
-      const product = products?.find((p) => p.id === item.product_id);
+      const product = products.find((p) => p.id === item.product_id);
       if (!product) {
         return json({ error: `Ürün bulunamadı: ${item.product_id}` }, 400);
       }
@@ -142,50 +161,41 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 7. Calculate total server-side
     let totalAmount = 0;
     const orderItems = items.map((item: OrderItem) => {
-      const product = products!.find((p) => p.id === item.product_id)!;
+      const product = products.find((p) => p.id === item.product_id)!;
       const lineTotal = product.price * item.quantity;
       totalAmount += lineTotal;
       return {
         product_id: product.id,
-        quantity: item.quantity,
+        product_name: product.name,
         unit_price: product.price,
-        total_price: lineTotal,
-        // Snapshot product data at time of order
-        snapshot: {
-          name: product.name,
-          description: product.description,
-          price: product.price,
-        },
+        quantity: item.quantity,
+        line_total: lineTotal,
       };
     });
 
-    // 8. Check minimum order
-    if (
-      merchant.minimum_order_amount &&
-      totalAmount < merchant.minimum_order_amount
-    ) {
-      const minDisplay = (merchant.minimum_order_amount / 100).toFixed(0);
+    const minOrder = merchant.minimum_order_amount as number | null;
+    if (minOrder && totalAmount < minOrder) {
       return json(
         {
-          error: `Minimum sipariş tutarı ${minDisplay} ₺. Lütfen daha fazla ürün ekleyin.`,
+          error: `Minimum sipariş tutarı ${(minOrder / 100).toFixed(0)} ₺. Lütfen daha fazla ürün ekleyin.`,
         },
         400,
       );
     }
 
-    // 9. Create order
     const { data: order, error: orderError } = await admin
       .from("orders")
       .insert({
-        customer_id: customer.id,
+        customer_id: customerId,
         merchant_id,
         status: "PENDING",
         total_amount: totalAmount,
         delivery_address: delivery_address,
-        notes: notes ?? null,
+        customer_notes: customerNotes,
+        guest_name: guestName,
+        guest_phone: guestPhone,
       })
       .select("id")
       .single();
@@ -195,35 +205,33 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Sipariş oluşturulamadı." }, 500);
     }
 
-    // 10. Insert order items (with snapshots)
     const { error: itemsError } = await admin.from("order_items").insert(
       orderItems.map((oi) => ({
         order_id: order.id,
         product_id: oi.product_id,
-        quantity: oi.quantity,
+        product_name: oi.product_name,
         unit_price: oi.unit_price,
-        total_price: oi.total_price,
-        snapshot: oi.snapshot,
+        quantity: oi.quantity,
+        line_total: oi.line_total,
       })),
     );
 
     if (itemsError) {
       console.error("Order items insert error:", itemsError);
-      // Rollback order
       await admin.from("orders").delete().eq("id", order.id);
       return json({ error: "Sipariş kalemleri oluşturulamadı." }, 500);
     }
 
-    // 11. Append initial status log (append-only, never updated)
     await admin.from("order_status_log").insert({
       order_id: order.id,
-      status: "PENDING",
-      actor_role: "customer",
-      actor_id: user.id,
-      note: "Sipariş oluşturuldu",
+      from_status: null,
+      to_status: "PENDING",
+      actor_role: isGuest ? "guest" : "customer",
+      actor_id: userId,
+      note: isGuest ? "Misafir sipariş oluşturuldu" : "Sipariş oluşturuldu",
     });
 
-    return json({ order_id: order.id }, 201);
+    return json({ order_id: order.id, guest: isGuest }, 201);
   } catch (err) {
     console.error("create-order unhandled error:", err);
     return json({ error: "Beklenmedik bir hata oluştu." }, 500);

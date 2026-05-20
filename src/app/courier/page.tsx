@@ -28,9 +28,9 @@ async function getAssignedOrders(courierId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, delivery_address, notes, created_at,
+      `id, status, total_amount, delivery_address, customer_notes, created_at,
        merchants(name, address, phone),
-       order_items(id, quantity, snapshot)`,
+       order_items(id, quantity, product_name, line_total)`,
     )
     .eq("courier_id", courierId)
     .in("status", ["ASSIGNED", "IN_TRANSIT"])
@@ -38,13 +38,13 @@ async function getAssignedOrders(courierId: string) {
   return (data ?? []) as (Omit<
     Pick<
       OrderRow,
-      "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"
+      "id" | "status" | "total_amount" | "delivery_address" | "customer_notes" | "created_at"
     >,
     "status"
   > & {
     status: "ASSIGNED" | "IN_TRANSIT";
     merchants: Pick<MerchantRow, "name" | "address" | "phone"> | null;
-    order_items: Pick<OrderItemRow, "id" | "quantity" | "snapshot">[];
+    order_items: Pick<OrderItemRow, "id" | "quantity" | "product_name" | "line_total">[];
   })[];
 }
 

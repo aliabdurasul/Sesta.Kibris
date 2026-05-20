@@ -21,7 +21,7 @@ export interface LiveDelivery {
   status: "ASSIGNED" | "IN_TRANSIT";
   total_amount: number;
   delivery_address: unknown;
-  notes: string | null;
+  customer_notes: string | null;
   created_at: string;
   merchants: {
     name: string;
@@ -31,7 +31,8 @@ export interface LiveDelivery {
   order_items: {
     id: string;
     quantity: number;
-    snapshot: unknown;
+    product_name: string;
+    line_total: number;
   }[];
 }
 
@@ -53,7 +54,7 @@ export function useCourierSubscription({
     const { data } = await supabaseRef.current
       .from("orders")
       .select(
-        "id, status, total_amount, delivery_address, notes, created_at, merchants(name, address, phone), order_items(id, quantity, snapshot)",
+        "id, status, total_amount, delivery_address, customer_notes, created_at, merchants(name, address, phone), order_items(id, quantity, product_name, line_total)",
       )
       .eq("courier_id", courierId)
       .in("status", ["ASSIGNED", "IN_TRANSIT"])

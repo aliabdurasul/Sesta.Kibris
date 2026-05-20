@@ -1,8 +1,8 @@
 /**
  * Checkout page — /checkout
  *
- * Guest flow: shows a login/register prompt with cart summary.
- * Cart is in sessionStorage (client-side Zustand) — it survives the redirect.
+ * Guest flow: GuestCheckoutForm (no auth) — POST create-order with guest fields.
+ * Optional login for saved addresses via CheckoutForm.
  *
  * Authenticated customer flow: shows order form with saved addresses.
  * Authenticated non-customer: redirected to their dashboard.
@@ -12,6 +12,7 @@
 import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { CheckoutForm } from "./CheckoutForm";
+import { GuestCheckoutForm } from "./GuestCheckoutForm";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Database } from "@/types/database";
@@ -53,42 +54,21 @@ async function getCustomerAddresses(userId: string): Promise<
 export default async function CheckoutPage() {
   const session = await getSession();
 
-  // ── Guest → show auth gate (don't hard redirect — keeps UX smooth) ────────
+  // ── Guest → full checkout without account ─────────────────────────────────
   if (!session) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
-        <div className="w-full max-w-sm">
-          <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-gray-100 text-center">
-            <div className="mb-3 text-3xl">🛒</div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Siparişi tamamlamak için giriş yapın
-            </h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Sepetiniz kayıtlı. Giriş yaptıktan sonra siparişinize devam
-              edebilirsiniz.
-            </p>
-
-            <div className="mt-6 space-y-3">
-              <Link
-                href="/auth/login?redirectTo=/checkout"
-                className="block w-full rounded-xl bg-blue-600 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-              >
-                Giriş Yap
-              </Link>
-              <Link
-                href="/auth/register?redirectTo=/checkout"
-                className="block w-full rounded-xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
-              >
-                Hesap Oluştur
-              </Link>
-              <Link
-                href="/merchants"
-                className="block text-sm text-gray-400 hover:text-gray-600"
-              >
-                Alışverişe devam et →
-              </Link>
-            </div>
+      <main className="min-h-screen bg-gray-50 px-4 py-6">
+        <div className="mx-auto max-w-xl">
+          <div className="mb-6 flex items-center gap-3">
+            <Link
+              href="/merchants"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              ← Alışverişe dön
+            </Link>
+            <h1 className="text-xl font-bold text-gray-900">Sipariş Ver</h1>
           </div>
+          <GuestCheckoutForm />
         </div>
       </main>
     );

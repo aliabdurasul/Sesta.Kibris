@@ -1,6 +1,16 @@
--- Seed data for local development
--- Run via: supabase db reset (which applies migrations then this file)
--- Per TASK-22 requirements
+-- ═══════════════════════════════════════════════════════════════════════════
+-- LOCAL DEVELOPMENT ONLY — NEVER run on production Supabase
+-- ═══════════════════════════════════════════════════════════════════════════
+-- This file inserts fixed UUIDs (auth.users, merchants, couriers, orders).
+-- Running it against production causes duplicate/conflicting rows and wrong
+-- is_active/is_open state. Production data must come from admin UI + migrations.
+--
+-- Local:  supabase db reset   (migrations + this seed)
+-- Prod:   supabase db push    (migrations only — no seed)
+--
+-- To fix production merchants stuck inactive (one-time, SQL editor):
+--   UPDATE merchants SET is_active = true WHERE user_id IS NOT NULL;
+-- ═══════════════════════════════════════════════════════════════════════════
 
 -- ============================================================
 -- AUTH USERS (created via Supabase auth.users insert)

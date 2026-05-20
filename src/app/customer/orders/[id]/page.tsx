@@ -55,18 +55,18 @@ async function getOrder(orderId: string, userId: string) {
   const orderRes = await supabase
     .from("orders")
     .select(`
-      id, status, total_amount, delivery_address, notes, created_at,
+      id, status, total_amount, delivery_address, customer_notes, created_at,
       merchants(name, phone),
-      order_items(id, quantity, unit_price, snapshot),
+      order_items(id, quantity, unit_price, product_name, line_total),
       order_status_log(id, status, note, created_at, actor_role)
     `)
     .eq("id", orderId)
     .eq("customer_id", customerId)
     .maybeSingle();
 
-  return orderRes.data as (Pick<OrderRow, "id" | "status" | "total_amount" | "delivery_address" | "notes" | "created_at"> & {
+  return orderRes.data as (Pick<OrderRow, "id" | "status" | "total_amount" | "delivery_address" | "customer_notes" | "created_at"> & {
     merchants: { name: string; phone: string | null } | null;
-    order_items: Pick<OrderItemRow, "id" | "quantity" | "unit_price" | "snapshot">[];
+    order_items: Pick<OrderItemRow, "id" | "quantity" | "unit_price" | "product_name" | "line_total">[];
     order_status_log: Pick<OrderStatusLogRow, "id" | "status" | "note" | "created_at" | "actor_role">[];
   }) | null;
 }
@@ -120,19 +120,16 @@ export default async function OrderDetailPage({ params }: PageProps) {
           {order.merchants?.name ?? "Market"}
         </h3>
         <ul className="space-y-2">
-          {order.order_items.map((item) => {
-            const snap = item.snapshot as Record<string, string> | null;
-            return (
+          {order.order_items.map((item) => (
               <li key={item.id} className="flex justify-between text-sm">
                 <span className="text-gray-700">
-                  {snap?.["name"] ?? "Ürün"} × {item.quantity}
+                  {item.product_name} × {item.quantity}
                 </span>
                 <span className="text-gray-500">
-                  {((item.unit_price * item.quantity) / 100).toFixed(2)} ₺
+                  {(item.line_total / 100).toFixed(2)} ₺
                 </span>
               </li>
-            );
-          })}
+            ))}
         </ul>
         <div className="mt-3 flex justify-between border-t border-gray-100 pt-3 font-bold text-gray-900">
           <span>Toplam</span>
@@ -147,8 +144,8 @@ export default async function OrderDetailPage({ params }: PageProps) {
         {addr?.["district"] && (
           <p className="text-xs text-gray-400">{addr["district"]}</p>
         )}
-        {order.notes && (
-          <p className="mt-2 text-xs text-gray-500 italic">Not: {order.notes}</p>
+        {order.customer_notes && (
+          <p className="mt-2 text-xs text-gray-500 italic">Not: {order.customer_notes}</p>
         )}
       </div>
 

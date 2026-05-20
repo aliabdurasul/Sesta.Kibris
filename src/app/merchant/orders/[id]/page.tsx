@@ -65,8 +65,8 @@ async function getMerchantOrder(userId: string, orderId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, delivery_address, notes, rejection_reason, created_at,
-       order_items(id, quantity, unit_price, snapshot)`,
+      `id, status, total_amount, delivery_address, customer_notes, rejection_reason, created_at,
+       order_items(id, quantity, unit_price, product_name, line_total)`,
     )
     .eq("id", orderId)
     .eq("merchant_id", merchant.id)
@@ -80,13 +80,13 @@ async function getMerchantOrder(userId: string, orderId: string) {
     | "status"
     | "total_amount"
     | "delivery_address"
-    | "notes"
+    | "customer_notes"
     | "rejection_reason"
     | "created_at"
   > & {
     order_items: Pick<
       OrderItemRow,
-      "id" | "quantity" | "unit_price" | "snapshot"
+      "id" | "quantity" | "unit_price" | "product_name" | "line_total"
     >[];
   };
 }
@@ -141,22 +141,19 @@ export default async function MerchantOrderDetailPage({ params }: PageProps) {
       <div className="mb-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
         <h3 className="mb-3 text-sm font-semibold text-gray-700">Ürünler</h3>
         <ul className="space-y-2">
-          {order.order_items.map((item) => {
-            const snap = item.snapshot as Record<string, string> | null;
-            return (
+          {order.order_items.map((item) => (
               <li
                 key={item.id}
                 className="flex items-center justify-between text-sm"
               >
                 <span className="text-gray-700">
-                  {snap?.["name"] ?? "Ürün"} × {item.quantity}
+                  {item.product_name} × {item.quantity}
                 </span>
                 <span className="font-medium text-gray-900">
-                  {((item.unit_price * item.quantity) / 100).toFixed(2)} ₺
+                  {(item.line_total / 100).toFixed(2)} ₺
                 </span>
               </li>
-            );
-          })}
+            ))}
         </ul>
         <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
           <span className="text-sm font-bold text-gray-900">Toplam</span>
@@ -180,10 +177,10 @@ export default async function MerchantOrderDetailPage({ params }: PageProps) {
       )}
 
       {/* Customer notes */}
-      {order.notes && (
+      {order.customer_notes && (
         <div className="mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
           <p className="text-xs font-semibold text-amber-700">Müşteri notu</p>
-          <p className="mt-1 text-sm text-amber-900">{order.notes}</p>
+          <p className="mt-1 text-sm text-amber-900">{order.customer_notes}</p>
         </div>
       )}
     </div>
