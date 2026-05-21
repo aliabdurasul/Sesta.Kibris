@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+@theme {
+  --color-sesta-navy: #0e2b51;
+  --color-sesta-orange: #e68228;
+  --color-sesta-blue: #288cd2;
+  --color-sesta-bg-light: #f8fafc;
+  --color-sesta-bg-dark: #091e3a;
+}

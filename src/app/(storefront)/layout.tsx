@@ -17,11 +17,11 @@ export default async function StorefrontLayout({
   const session = await getSession();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
+    <div className="min-h-screen bg-sesta-bg-light">
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <a href="/merchants" className="block">
-            <span className="text-lg font-bold text-gray-900">SestaKıbrıs</span>
+          <a href="/" className="block">
+            <span className="text-lg font-bold text-sesta-navy">SestaKıbrıs</span>
             <span className="block text-xs font-medium text-gray-500">
               Kıbrıs&apos;ın Sepeti
             </span>
@@ -44,7 +44,7 @@ export default async function StorefrontLayout({
               </a>
               <a
                 href="/auth/login"
-                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                className="rounded-lg bg-sesta-navy px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-sesta-navy/90"
               >
                 Giriş
               </a>

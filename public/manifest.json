@@ -2,10 +2,10 @@
   "name": "SestaKıbrıs",
   "short_name": "Sesta",
   "description": "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş",
-  "start_url": "/merchants",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f9fafb",
-  "theme_color": "#2563eb",
+  "theme_color": "#0E2B51",
   "orientation": "portrait",
   "icons": [
     {
