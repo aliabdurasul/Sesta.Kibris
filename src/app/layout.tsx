@@ -10,8 +10,11 @@ export const metadata: Metadata = {
     "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş ve hızlı teslimat.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
-    apple: "/favicon.png",
+    icon: [
+      { url: "/favicon.png", sizes: "any" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
     title: "SestaKıbrıs",
