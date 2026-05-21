@@ -20,8 +20,11 @@ export default async function StorefrontLayout({
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <a href="/merchants" className="text-lg font-bold text-gray-900">
-            SestaKıbrıs
+          <a href="/merchants" className="block">
+            <span className="text-lg font-bold text-gray-900">SestaKıbrıs</span>
+            <span className="block text-xs font-medium text-gray-500">
+              Kıbrıs&apos;ın Sepeti
+            </span>
           </a>
 
           {session ? (

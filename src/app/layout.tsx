@@ -2,10 +2,29 @@ import type { Metadata, Viewport } from "next";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
+const TAGLINE = "Kıbrıs'ın Sepeti";
+
 export const metadata: Metadata = {
-  title: "SestaKıbrıs",
-  description: "Kıbrıs'ın hyperlocal sipariş platformu",
+  title: `SestaKıbrıs — ${TAGLINE}`,
+  description:
+    "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş ve hızlı teslimat.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
+  openGraph: {
+    title: "SestaKıbrıs",
+    description: TAGLINE,
+    type: "website",
+    locale: "tr_TR",
+    siteName: "SestaKıbrıs",
+  },
+  twitter: {
+    card: "summary",
+    title: "SestaKıbrıs",
+    description: TAGLINE,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

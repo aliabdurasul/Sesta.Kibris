@@ -1,7 +1,7 @@
 {
   "name": "SestaKıbrıs",
   "short_name": "Sesta",
-  "description": "Kıbrıs'ın hyperlocal sipariş platformu",
+  "description": "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş",
   "start_url": "/merchants",
   "display": "standalone",
   "background_color": "#f9fafb",

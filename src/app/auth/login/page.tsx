@@ -76,7 +76,10 @@ export default async function LoginPage({ searchParams }: PageProps) {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900">SestaKıbrıs</h1>
-          <p className="mt-1 text-sm text-gray-500">Hesabınıza giriş yapın</p>
+          <p className="mt-1 text-sm font-medium text-gray-600">
+            Kıbrıs&apos;ın Sepeti
+          </p>
+          <p className="mt-0.5 text-sm text-gray-500">Hesabınıza giriş yapın</p>
         </div>
 
         {callbackError && (
