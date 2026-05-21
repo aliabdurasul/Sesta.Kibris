@@ -1,6 +1,10 @@
 /**
  * Customer order history — /customer/orders
  */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { unstable_noStore as noStore } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
@@ -33,24 +37,18 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 async function getCustomerOrders(userId: string) {
+  noStore();
   const supabase = await createServerClient();
-
-  const customerRes = await supabase
-    .from("customers")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  const customerId = (customerRes.data as { id: string } | null)?.id;
-  if (!customerId) return [];
 
   const { data } = await supabase
     .from("orders")
-    .select(`
+    .select(
+      `
       id, status, total_amount, created_at,
-      merchants(name)
-    `)
-    .eq("customer_id", customerId)
+      merchants!left(name)
+    `,
+    )
+    .eq("customer_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
 

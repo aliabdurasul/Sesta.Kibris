@@ -11,7 +11,7 @@
  * On success: clears cart and redirects to /customer/orders/[orderId].
  */
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { resolveOrderIdFromCreateResponse } from "@/lib/orders/resolve-order-id";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,8 +39,7 @@ interface CheckoutFormProps {
   userId: string;
 }
 
-export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
-  const router = useRouter();
+export function CheckoutForm({ savedAddresses, userId: _userId }: CheckoutFormProps) {
   const { items, merchantId, getTotal, clearCart } = useCartStore();
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -119,17 +118,27 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        cache: "no-store",
         body: JSON.stringify(body),
       });
 
-      const json = (await res.json()) as { order_id?: string; error?: string };
+      const json = (await res.json()) as Record<string, unknown>;
 
-      if (!res.ok || !json.order_id) {
-        throw new Error(json.error ?? "Sipariş oluşturulamadı.");
+      if (!res.ok) {
+        throw new Error(
+          (typeof json["error"] === "string" ? json["error"] : null) ??
+            "Sipariş oluşturulamadı.",
+        );
       }
 
+      const orderId = resolveOrderIdFromCreateResponse(json);
+      if (!orderId) {
+        throw new Error("Sipariş oluşturuldu ancak sipariş numarası alınamadı.");
+      }
+
+      const target = `/customer/orders/${orderId}`;
       clearCart();
-      router.push(`/customer/orders/${json.order_id}`);
+      window.location.assign(target);
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Beklenmedik bir hata oluştu.",

@@ -145,9 +145,28 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const response = NextResponse.json({ ...payload, authMode }, { status: edgeRes.status });
+  const orderId =
+    typeof payload["order_id"] === "string" ? payload["order_id"] : null;
 
-  response.cookies.set("guest_user_id", guestUserId, guestCookieOptions());
+  log.info("api.orders.create.success", {
+    authMode,
+    orderId,
+    redirectTarget: orderId ? `/customer/orders/${orderId}` : null,
+    status: edgeRes.status,
+  });
+
+  const response = NextResponse.json(
+    {
+      ...payload,
+      authMode,
+      order: orderId ? { id: orderId } : undefined,
+    },
+    { status: edgeRes.status },
+  );
+
+  if (authMode === "guest") {
+    response.cookies.set("guest_user_id", guestUserId, guestCookieOptions());
+  }
 
   return response;
 }
