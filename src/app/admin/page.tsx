@@ -17,8 +17,17 @@ async function getAdminData() {
   const [ordersRes, couriersRes] = await Promise.all([
     supabase
       .from("orders")
-      .select(`id, status, total_amount, created_at, merchants(name)`)
-      .in("status", ["PENDING", "CONFIRMED", "READY", "ASSIGNED", "IN_TRANSIT"])
+      .select(
+        `id, status, total_amount, merchant_id, courier_id, created_at, merchants(name)`,
+      )
+      .in("status", [
+        "PENDING",
+        "CONFIRMED",
+        "READY",
+        "ASSIGNED",
+        "PICKED_UP",
+        "IN_TRANSIT",
+      ])
       .order("created_at", { ascending: true })
       .limit(50),
     supabase
@@ -30,7 +39,7 @@ async function getAdminData() {
 
   const orders = (ordersRes.data ?? []) as (Pick<
     OrderRow,
-    "id" | "status" | "total_amount" | "created_at"
+    "id" | "status" | "total_amount" | "merchant_id" | "courier_id" | "created_at"
   > & { merchants: { name: string } | null })[];
 
   const couriers = (couriersRes.data ?? []) as Pick<

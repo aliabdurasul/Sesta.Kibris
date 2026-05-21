@@ -101,7 +101,7 @@ export default async function middleware(request: NextRequest) {
     return result instanceof NextResponse ? result : NextResponse.next();
   }
 
-  let { response, user } = result;
+  let { response, user, supabase } = result;
   response = ensureGuestCookie(request, response, !!user);
 
   const gated = protectedMatch(pathname);
@@ -156,7 +156,26 @@ export default async function middleware(request: NextRequest) {
     return response;
   }
 
-  // ── GUARD 2: Already at destination ─────────────────────────────────────
+  // ── GUARD 2: Multi-role — JWT role differs but user has required role ───
+  if (userRole !== requiredRole && supabase) {
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+    const hasRequired = (roleRows ?? []).some(
+      (r) => (r as { role: string }).role === requiredRole,
+    );
+    if (hasRequired) {
+      if (IS_DEV) {
+        console.log(
+          `[AUTH TRACE] middleware | multi-role pass | jwt=${userRole} required=${requiredRole} path=${pathname}`,
+        );
+      }
+      return response;
+    }
+  }
+
+  // ── GUARD 3: Already at destination ─────────────────────────────────────
   if (userRole !== requiredRole) {
     const targetPath = roleHomeFromJwt(userRole);
     if (pathname === targetPath || pathname.startsWith(targetPath + "/")) {

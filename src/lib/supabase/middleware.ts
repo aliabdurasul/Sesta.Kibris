@@ -96,5 +96,9 @@ export async function updateSession(
     }
   }
 
-  return { response: supabaseResponse, user: userError ? null : user };
+  return {
+    response: supabaseResponse,
+    user: userError ? null : user,
+    supabase,
+  };
 }

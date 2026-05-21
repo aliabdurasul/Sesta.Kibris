@@ -25,11 +25,19 @@ export type OrderStatus =
   | "CONFIRMED"
   | "READY"
   | "ASSIGNED"
+  | "PICKED_UP"
   | "IN_TRANSIT"
   | "DELIVERED"
   | "REJECTED"
   | "FAILED_DELIVERY"
   | "CANCELLED";
+
+export type DeliveryMode =
+  | "MERCHANT_DELIVERY"
+  | "PLATFORM_COURIER"
+  | "HYBRID";
+
+export type UserRole = "customer" | "merchant" | "courier" | "admin";
 
 export interface Database {
   public: {
@@ -48,6 +56,7 @@ export interface Database {
           is_open: boolean;
           minimum_order_amount: number | null;
           order_timeout_minutes: number;
+          delivery_mode: DeliveryMode;
           created_at: string;
           updated_at: string;
         };
@@ -195,6 +204,18 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
       };
+      user_roles: {
+        Row: {
+          user_id: string;
+          role: UserRole;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          role: UserRole;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_roles"]["Row"]>;
+      };
       order_status_log: {
         Row: {
           id: string;
@@ -220,6 +241,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      user_has_role: {
+        Args: { check_role: string };
+        Returns: boolean;
+      };
       user_role: {
         Args: Record<string, never>;
         Returns: string;

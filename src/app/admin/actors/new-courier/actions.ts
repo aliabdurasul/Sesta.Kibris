@@ -107,6 +107,11 @@ export async function createCourierAction(
 
   const courierId = (courierData as { id: string }).id;
 
+  await admin.from("user_roles").upsert(
+    { user_id: userId, role: "courier" } as never,
+    { onConflict: "user_id,role" },
+  );
+
   const { error: metaError } = await admin.auth.admin.updateUserById(userId, {
     app_metadata: {
       role: "courier",

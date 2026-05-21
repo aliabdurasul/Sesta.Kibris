@@ -34,6 +34,52 @@ export interface SessionUser {
 
 // ─── Role resolution ──────────────────────────────────────────────────────────
 
+/** All roles granted in user_roles (multi-role accounts). */
+export async function getUserRoles(userId: string): Promise<UserRole[]> {
+  const supabase = await createServerClient();
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  return (data ?? []).map((r) => (r as { role: UserRole }).role);
+}
+
+export async function userHasRole(
+  userId: string,
+  role: UserRole,
+): Promise<boolean> {
+  const roles = await getUserRoles(userId);
+  return roles.includes(role);
+}
+
+/**
+ * Resolves profile ids when acting as a specific role (multi-role).
+ */
+async function resolveProfileForRole(
+  userId: string,
+  role: UserRole,
+): Promise<{ merchantId?: string; courierId?: string }> {
+  const supabase = await createServerClient();
+  if (role === "merchant") {
+    const { data } = await supabase
+      .from("merchants")
+      .select("id")
+      .or(`user_id.eq.${userId},owner_user_id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle();
+    return { merchantId: (data as { id: string } | null)?.id };
+  }
+  if (role === "courier") {
+    const { data } = await supabase
+      .from("couriers")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return { courierId: (data as { id: string } | null)?.id };
+  }
+  return {};
+}
+
 /**
  * Resolves the role for a given auth user ID.
  *
@@ -55,7 +101,25 @@ export async function resolveUserRole(
     };
   }
 
-  // ── 2. Slow path: DB lookup ───────────────────────────────────────────────
+  // ── 2. user_roles table ───────────────────────────────────────────────────
+  const roles = await getUserRoles(userId);
+  if (roles.length === 1) {
+    const only = roles[0]!;
+    const profile = await resolveProfileForRole(userId, only);
+    return { role: only, ...profile };
+  }
+  if (roles.length > 1) {
+    // Prefer courier > merchant > customer when JWT has no active role
+    const priority: UserRole[] = ["admin", "courier", "merchant", "customer"];
+    for (const r of priority) {
+      if (roles.includes(r)) {
+        const profile = await resolveProfileForRole(userId, r);
+        return { role: r, ...profile };
+      }
+    }
+  }
+
+  // ── 3. Legacy slow path: profile tables ───────────────────────────────────
   const supabase = await createServerClient();
 
   // Check customers
@@ -211,8 +275,12 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   // layout render instead of redirecting to the same location.
   if (resolved.role !== allowedRole) {
     const target = getRoleHomePath(resolved.role);
+    const requiredHome = getRoleHomePath(allowedRole);
     const alreadyThere =
       currentPath === target || currentPath.startsWith(target + "/");
+    const inRequiredSubtree =
+      currentPath === requiredHome ||
+      currentPath.startsWith(requiredHome + "/");
 
     if (IS_DEV) {
       log.info("auth.require_role.mismatch", {
@@ -221,12 +289,22 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
         path: currentPath,
         target,
         alreadyThere,
+        inRequiredSubtree,
       });
     }
 
+    // Multi-role: JWT active role differs but user may access this dashboard
+    if (inRequiredSubtree && (await userHasRole(user.id, allowedRole))) {
+      const profile = await resolveProfileForRole(user.id, allowedRole);
+      return {
+        id: user.id,
+        email: user.email ?? "",
+        role: allowedRole,
+        ...profile,
+      };
+    }
+
     if (alreadyThere) {
-      // Return resolved session — don't redirect to where we already are.
-      // The layout/page will render with correct session data.
       return {
         id: user.id,
         email: user.email ?? "",

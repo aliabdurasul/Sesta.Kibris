@@ -115,6 +115,11 @@ export async function createMerchantAction(
 
   const merchantId = (merchantData as { id: string }).id;
 
+  await admin.from("user_roles").upsert(
+    { user_id: userId, role: "merchant" } as never,
+    { onConflict: "user_id,role" },
+  );
+
   const { error: metaError } = await admin.auth.admin.updateUserById(userId, {
     app_metadata: { role: "merchant", merchant_id: merchantId },
   });

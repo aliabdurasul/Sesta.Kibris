@@ -1,7 +1,9 @@
 /**
  * Courier dashboard — /courier
- * Shows orders ASSIGNED or IN_TRANSIT for this courier.
+ * Shows ASSIGNED, PICKED_UP, and IN_TRANSIT orders for this courier.
  */
+export const dynamic = "force-dynamic";
+
 import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { CourierDeliveryQueue } from "@/components/courier/CourierDeliveryQueue";
@@ -33,8 +35,8 @@ async function getAssignedOrders(courierId: string) {
        order_items(id, quantity, product_name, line_total)`,
     )
     .eq("courier_id", courierId)
-    .in("status", ["ASSIGNED", "IN_TRANSIT"])
-    .order("created_at", { ascending: true });
+    .in("status", ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"])
+    .order("assigned_at", { ascending: true, nullsFirst: false });
   return (data ?? []) as (Omit<
     Pick<
       OrderRow,
@@ -42,7 +44,7 @@ async function getAssignedOrders(courierId: string) {
     >,
     "status"
   > & {
-    status: "ASSIGNED" | "IN_TRANSIT";
+    status: "ASSIGNED" | "PICKED_UP" | "IN_TRANSIT";
     merchants: Pick<MerchantRow, "name" | "address" | "phone"> | null;
     order_items: Pick<OrderItemRow, "id" | "quantity" | "product_name" | "line_total">[];
   })[];

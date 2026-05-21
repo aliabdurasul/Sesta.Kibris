@@ -10,15 +10,11 @@
  */
 import { useState } from "react";
 import { getBrowserAccessToken } from "@/lib/supabase/access-token";
+import {
+  useAdminOrderSubscription,
+  type AdminLiveOrder,
+} from "@/hooks/useAdminOrderSubscription";
 import type { OrderStatus } from "@/types/database";
-
-interface Order {
-  id: string;
-  status: OrderStatus;
-  total_amount: number;
-  created_at: string;
-  merchants: { name: string } | null;
-}
 
 interface Courier {
   id: string;
@@ -31,6 +27,7 @@ const STATUS_LABELS: Record<string, string> = {
   CONFIRMED: "Onaylandı",
   READY: "Hazır",
   ASSIGNED: "Kurye Atandı",
+  PICKED_UP: "Alındı",
   IN_TRANSIT: "Yolda",
 };
 
@@ -39,6 +36,7 @@ const STATUS_COLORS: Record<string, string> = {
   CONFIRMED: "bg-blue-100 text-blue-800",
   READY: "bg-green-100 text-green-800",
   ASSIGNED: "bg-orange-100 text-orange-800",
+  PICKED_UP: "bg-amber-100 text-amber-800",
   IN_TRANSIT: "bg-purple-100 text-purple-800",
 };
 
@@ -77,10 +75,20 @@ export function AdminOrderAssignment({
   orders: initialOrders,
   couriers,
 }: {
-  orders: Order[];
+  orders: AdminLiveOrder[];
   couriers: Courier[];
 }) {
-  const [orders, setOrders] = useState(initialOrders);
+  const { orders, setOrders } = useAdminOrderSubscription({
+    initialOrders,
+    activeStatuses: [
+      "PENDING",
+      "CONFIRMED",
+      "READY",
+      "ASSIGNED",
+      "PICKED_UP",
+      "IN_TRANSIT",
+    ],
+  });
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

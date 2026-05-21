@@ -1,14 +1,12 @@
 "use client";
 
 /**
- * Courier delivery queue.
- * Shows ASSIGNED and IN_TRANSIT orders with realtime updates.
- * Pickup confirmation: ASSIGNED → IN_TRANSIT
- * Delivery confirmation: IN_TRANSIT → DELIVERED
- * Failure reporting: IN_TRANSIT → FAILED_DELIVERY
+ * Courier delivery queue with realtime updates.
+ * Flow: ASSIGNED → PICKED_UP → IN_TRANSIT → DELIVERED | FAILED_DELIVERY
  */
 import { useState } from "react";
 import { useCourierSubscription } from "@/hooks/useCourierSubscription";
+import type { CourierQueueStatus } from "@/hooks/useCourierSubscription";
 import type { Json } from "@/types/database";
 
 interface OrderMerchant {
@@ -26,7 +24,7 @@ interface OrderItemData {
 
 interface Order {
   id: string;
-  status: "ASSIGNED" | "IN_TRANSIT";
+  status: CourierQueueStatus;
   total_amount: number;
   delivery_address: Json;
   customer_notes: string | null;
@@ -37,6 +35,7 @@ interface Order {
 
 const STATUS_LABELS: Record<string, string> = {
   ASSIGNED: "Alınacak",
+  PICKED_UP: "Alındı",
   IN_TRANSIT: "Yolda",
 };
 
@@ -44,7 +43,6 @@ async function doTransition(orderId: string, newStatus: string, note?: string) {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
-  // Must use the user's session access_token, not the anon key.
   const { getBrowserAccessToken } = await import("@/lib/supabase/access-token");
   const accessToken = await getBrowserAccessToken();
 
@@ -68,10 +66,10 @@ type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error";
 
 function ConnectionDot({ status }: { status: ConnectionStatus }) {
   const config = {
-    connecting:  { color: "bg-yellow-400", label: "Bağlanıyor..." },
-    connected:   { color: "bg-green-500",  label: "Canlı" },
-    reconnecting:{ color: "bg-yellow-500", label: "Yeniden bağlanıyor..." },
-    error:       { color: "bg-red-500",    label: "Bağlantı kesildi" },
+    connecting: { color: "bg-yellow-400", label: "Bağlanıyor..." },
+    connected: { color: "bg-green-500", label: "Canlı" },
+    reconnecting: { color: "bg-yellow-500", label: "Yeniden bağlanıyor..." },
+    error: { color: "bg-red-500", label: "Bağlantı kesildi" },
   }[status];
 
   return (
@@ -106,12 +104,15 @@ export function CourierDeliveryQueue({
     try {
       await doTransition(orderId, newStatus, note);
 
-      const isTerminal = newStatus === "DELIVERED" || newStatus === "FAILED_DELIVERY";
+      const isTerminal =
+        newStatus === "DELIVERED" || newStatus === "FAILED_DELIVERY";
       setOrders((prev) =>
         isTerminal
           ? prev.filter((o) => o.id !== orderId)
           : prev.map((o) =>
-              o.id === orderId ? { ...o, status: newStatus as "ASSIGNED" | "IN_TRANSIT" } : o,
+              o.id === orderId
+                ? { ...o, status: newStatus as CourierQueueStatus }
+                : o,
             ),
       );
     } catch (err) {
@@ -125,6 +126,11 @@ export function CourierDeliveryQueue({
     return (
       <div className="space-y-3">
         <ConnectionDot status={connectionStatus} />
+        {connectionStatus === "error" && (
+          <p className="text-sm text-red-600" role="alert">
+            Canlı güncellemeler kesildi. Sayfayı yenileyin veya bağlantınızı kontrol edin.
+          </p>
+        )}
         <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
           <p className="text-lg">Atanan teslimat yok.</p>
           <p className="mt-1 text-sm">Hazır siparişler size atandığında burada görünecek.</p>
@@ -136,6 +142,11 @@ export function CourierDeliveryQueue({
   return (
     <div className="space-y-4">
       <ConnectionDot status={connectionStatus} />
+      {connectionStatus === "error" && (
+        <p className="text-sm text-red-600" role="alert">
+          Canlı güncellemeler kesildi. Liste otomatik yenilenmeyebilir.
+        </p>
+      )}
       {error && (
         <div
           role="alert"
@@ -163,17 +174,18 @@ export function CourierDeliveryQueue({
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   order.status === "IN_TRANSIT"
                     ? "bg-orange-100 text-orange-700"
-                    : "bg-blue-100 text-blue-700"
+                    : order.status === "PICKED_UP"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-blue-100 text-blue-700"
                 }`}
               >
                 {STATUS_LABELS[order.status] ?? order.status}
               </span>
             </div>
 
-            {/* Pickup location */}
             {merchant && (
               <div className="mb-3 rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Alınacak Yer
                 </p>
                 <p className="mt-1 font-medium text-gray-900">{merchant.name}</p>
@@ -191,9 +203,8 @@ export function CourierDeliveryQueue({
               </div>
             )}
 
-            {/* Delivery location */}
             <div className="mb-3 rounded-xl bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Teslimat Adresi
               </p>
               <p className="mt-1 text-sm text-gray-900">
@@ -205,20 +216,33 @@ export function CourierDeliveryQueue({
             </div>
 
             {order.customer_notes && (
-              <p className="mb-3 text-xs text-gray-400 italic">
+              <p className="mb-3 text-xs italic text-gray-400">
                 Not: {order.customer_notes}
               </p>
             )}
 
-            {/* Actions */}
             <div className="mt-2 flex flex-col gap-2">
               {order.status === "ASSIGNED" && (
                 <button
-                  onClick={() => handleTransition(order.id, "IN_TRANSIT", "Kurye siparişi aldı")}
+                  onClick={() =>
+                    handleTransition(order.id, "PICKED_UP", "Kurye işletmeden aldı")
+                  }
+                  disabled={isLoading}
+                  className="w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isLoading ? "..." : "📦 İşletmeden Aldım"}
+                </button>
+              )}
+
+              {order.status === "PICKED_UP" && (
+                <button
+                  onClick={() =>
+                    handleTransition(order.id, "IN_TRANSIT", "Kurye yola çıktı")
+                  }
                   disabled={isLoading}
                   className="w-full rounded-xl bg-orange-500 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
                 >
-                  {isLoading ? "..." : "📦 Siparişi Aldım — Yola Çıkıyorum"}
+                  {isLoading ? "..." : "🚗 Yola Çıkıyorum"}
                 </button>
               )}
 
@@ -235,7 +259,11 @@ export function CourierDeliveryQueue({
                   </button>
                   <button
                     onClick={() =>
-                      handleTransition(order.id, "FAILED_DELIVERY", "Teslimat başarısız")
+                      handleTransition(
+                        order.id,
+                        "FAILED_DELIVERY",
+                        "Teslimat başarısız",
+                      )
                     }
                     disabled={isLoading}
                     className="w-full rounded-xl bg-gray-100 py-3 text-sm font-semibold text-gray-700 ring-1 ring-gray-200 transition-colors hover:bg-gray-200 disabled:opacity-50"

@@ -1,24 +1,26 @@
 /**
- * useCourierSubscription — Supabase Realtime hook for the courier delivery queue.
- *
- * Subscribes to postgres_changes on the orders table filtered by courier_id.
- * Refetches on reconnect to catch any missed events.
- * Unsubscribes on unmount.
- *
- * Subscription filter: courier_id=eq.{courierId}
- * Shows: ASSIGNED and IN_TRANSIT orders only
+ * useCourierSubscription — Realtime for courier delivery queue.
+ * Channel: orders:courier:{courierId}
  */
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import {
+  useOrderRealtimeCore,
+  type ConnectionStatus,
+} from "@/hooks/useOrderRealtimeCore";
 
-export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error";
+export type { ConnectionStatus };
+
+const ACTIVE_STATUSES = ["ASSIGNED", "PICKED_UP", "IN_TRANSIT"] as const;
+
+export type CourierQueueStatus = (typeof ACTIVE_STATUSES)[number];
 
 export interface LiveDelivery {
   id: string;
-  status: "ASSIGNED" | "IN_TRANSIT";
+  status: CourierQueueStatus;
   total_amount: number;
   delivery_address: unknown;
   customer_notes: string | null;
@@ -36,6 +38,9 @@ export interface LiveDelivery {
   }[];
 }
 
+const SELECT =
+  "id, status, total_amount, delivery_address, customer_notes, created_at, merchants(name, address, phone), order_items(id, quantity, product_name, line_total)";
+
 interface UseCourierSubscriptionOptions {
   courierId: string;
   initialOrders: LiveDelivery[];
@@ -45,72 +50,65 @@ export function useCourierSubscription({
   courierId,
   initialOrders,
 }: UseCourierSubscriptionOptions) {
-  const [orders, setOrders] = useState<LiveDelivery[]>(initialOrders);
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef(createBrowserClient());
+  const supabase = useMemo(() => createBrowserClient(), []);
 
-  const fetchOrders = useCallback(async () => {
-    const { data } = await supabaseRef.current
+  const fetchOrders = useCallback(async (): Promise<LiveDelivery[]> => {
+    const { data } = await supabase
       .from("orders")
-      .select(
-        "id, status, total_amount, delivery_address, customer_notes, created_at, merchants(name, address, phone), order_items(id, quantity, product_name, line_total)",
-      )
+      .select(SELECT)
       .eq("courier_id", courierId)
-      .in("status", ["ASSIGNED", "IN_TRANSIT"])
-      .order("created_at", { ascending: true });
+      .in("status", [...ACTIVE_STATUSES])
+      .order("assigned_at", { ascending: true, nullsFirst: false });
+    return (data ?? []) as LiveDelivery[];
+  }, [courierId, supabase]);
 
-    if (data) {
-      setOrders(data as LiveDelivery[]);
-    }
-  }, [courierId]);
+  const mergeRow = useCallback(
+    (
+      prev: LiveDelivery[],
+      payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+    ): LiveDelivery[] => {
+      const row = payload.new as Record<string, unknown> | undefined;
+      const oldRow = payload.old as Record<string, unknown> | undefined;
+      const id = (row?.id ?? oldRow?.id) as string | undefined;
+      if (!id) return prev;
 
-  useEffect(() => {
-    const supabase = supabaseRef.current;
-
-    if (channelRef.current) {
-      void supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-
-    const channel = supabase
-      .channel(`courier-deliveries-${courierId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `courier_id=eq.${courierId}`,
-        },
-        async () => {
-          await fetchOrders();
-        },
-      )
-      .on("system", { event: "connected" }, () => {
-        setStatus("connected");
-        void fetchOrders();
-      })
-      .on("system", { event: "disconnected" }, () => {
-        setStatus("reconnecting");
-      })
-      .subscribe((subStatus) => {
-        if (subStatus === "SUBSCRIBED") {
-          setStatus("connected");
-        } else if (subStatus === "CHANNEL_ERROR" || subStatus === "TIMED_OUT") {
-          setStatus("error");
-        }
-      });
-
-    channelRef.current = channel;
-
-    return () => {
-      if (channelRef.current) {
-        void supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+      if (payload.eventType === "DELETE") {
+        return prev.filter((o) => o.id !== id);
       }
-    };
-  }, [courierId, fetchOrders]);
 
-  return { orders, setOrders, connectionStatus: status };
+      const status = row?.status as string | undefined;
+      const courier = row?.courier_id as string | undefined;
+
+      if (courier !== courierId) {
+        return prev.filter((o) => o.id !== id);
+      }
+
+      if (
+        !status ||
+        !ACTIVE_STATUSES.includes(status as CourierQueueStatus)
+      ) {
+        return prev.filter((o) => o.id !== id);
+      }
+
+      if (payload.eventType === "INSERT") {
+        if (prev.some((o) => o.id === id)) return prev;
+        void fetchOrders();
+        return prev;
+      }
+
+      return prev.map((o) =>
+        o.id === id ? { ...o, status: status as CourierQueueStatus } : o,
+      );
+    },
+    [courierId, fetchOrders],
+  );
+
+  const { rows, setRows, connectionStatus, refetch } = useOrderRealtimeCore({
+    filter: { kind: "courier", courierId },
+    initialRows: initialOrders,
+    fetchRows: fetchOrders,
+    mergeRow,
+  });
+
+  return { orders: rows, setOrders: setRows, connectionStatus, refetch };
 }

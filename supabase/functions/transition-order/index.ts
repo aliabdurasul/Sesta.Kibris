@@ -1,19 +1,10 @@
 /**
  * Edge Function: POST /functions/v1/transition-order
  *
- * Enforces the Order State Machine from SYSTEM_DESIGN.md.
- * Validates:
- * - Actor role has permission for this transition
- * - Transition is valid from current state
- * Appends to order_status_log (append-only).
- *
- * Valid transitions:
- * PENDING   → CONFIRMED | REJECTED    (merchant)
- * CONFIRMED → READY                   (merchant)
- * READY     → ASSIGNED                (system/courier assignment)
- * ASSIGNED  → IN_TRANSIT              (courier)
- * IN_TRANSIT→ DELIVERED | FAILED_DELIVERY (courier)
- * ANY       → CANCELLED               (customer when PENDING only)
+ * Enforces the Order State Machine.
+ * ASSIGNED: admin only (+ courier_id, assigned_at)
+ * PICKED_UP: courier only (ASSIGNED → PICKED_UP)
+ * IN_TRANSIT: courier only (PICKED_UP → IN_TRANSIT, sets picked_up_at)
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -28,6 +19,7 @@ type OrderStatus =
   | "CONFIRMED"
   | "READY"
   | "ASSIGNED"
+  | "PICKED_UP"
   | "IN_TRANSIT"
   | "DELIVERED"
   | "REJECTED"
@@ -36,7 +28,8 @@ type OrderStatus =
 
 type ActorRole = "customer" | "merchant" | "courier" | "admin";
 
-// [from, to] → allowed actor roles
+type DeliveryMode = "MERCHANT_DELIVERY" | "PLATFORM_COURIER" | "HYBRID";
+
 const VALID_TRANSITIONS: Record<
   string,
   { to: OrderStatus; allowedRoles: ActorRole[] }[]
@@ -50,10 +43,12 @@ const VALID_TRANSITIONS: Record<
     { to: "READY", allowedRoles: ["merchant", "admin"] },
     { to: "CANCELLED", allowedRoles: ["admin"] },
   ],
-  READY: [
-    { to: "ASSIGNED", allowedRoles: ["admin"] },
-  ],
+  READY: [{ to: "ASSIGNED", allowedRoles: ["admin"] }],
   ASSIGNED: [
+    { to: "PICKED_UP", allowedRoles: ["courier"] },
+    { to: "IN_TRANSIT", allowedRoles: ["admin"] },
+  ],
+  PICKED_UP: [
     { to: "IN_TRANSIT", allowedRoles: ["courier", "admin"] },
   ],
   IN_TRANSIT: [
@@ -86,7 +81,6 @@ Deno.serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify actor JWT
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -97,13 +91,9 @@ Deno.serve(async (req: Request) => {
 
     if (authError || !user) return json({ error: "Geçersiz oturum." }, 401);
 
-    const actorRole = (
-      user.app_metadata as Record<string, string> | undefined
-    )?.["role"] as ActorRole | undefined;
+    const meta = user.app_metadata as Record<string, string> | undefined;
+    let actorRole = meta?.["role"] as ActorRole | undefined;
 
-    if (!actorRole) return json({ error: "Hesap rolü tanımsız." }, 403);
-
-    // Parse body
     const body = (await req.json()) as RequestBody;
     const { order_id, new_status, courier_id, note } = body;
 
@@ -113,10 +103,31 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Fetch current order
+    const courierOnlyStatuses: OrderStatus[] = [
+      "PICKED_UP",
+      "IN_TRANSIT",
+      "DELIVERED",
+      "FAILED_DELIVERY",
+    ];
+    if (
+      courierOnlyStatuses.includes(new_status) &&
+      actorRole !== "courier" &&
+      actorRole !== "admin"
+    ) {
+      const { data: courierRole } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "courier")
+        .maybeSingle();
+      if (courierRole) actorRole = "courier";
+    }
+
+    if (!actorRole) return json({ error: "Hesap rolü tanımsız." }, 403);
+
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, status, merchant_id, customer_id")
+      .select("id, status, merchant_id, customer_id, courier_id, picked_up_at")
       .eq("id", order_id)
       .single();
 
@@ -126,7 +137,6 @@ Deno.serve(async (req: Request) => {
 
     const currentStatus = order.status as OrderStatus;
 
-    // Validate transition
     const allowedTransitions = VALID_TRANSITIONS[currentStatus];
     if (!allowedTransitions) {
       return json(
@@ -138,58 +148,113 @@ Deno.serve(async (req: Request) => {
     const transition = allowedTransitions.find((t) => t.to === new_status);
     if (!transition) {
       return json(
-        {
-          error: `${currentStatus} → ${new_status} geçişi geçersiz.`,
-        },
+        { error: `${currentStatus} → ${new_status} geçişi geçersiz.` },
         400,
       );
     }
 
     if (!transition.allowedRoles.includes(actorRole)) {
+      const code =
+        new_status === "ASSIGNED"
+          ? "ASSIGNMENT_FORBIDDEN"
+          : new_status === "PICKED_UP"
+            ? "PICKUP_FORBIDDEN"
+            : "TRANSITION_FORBIDDEN";
       return json(
-        {
-          error: `${actorRole} bu geçişi gerçekleştiremez.`,
-        },
+        { error: `${actorRole} bu geçişi gerçekleştiremez.`, code },
         403,
       );
     }
 
-    // For merchant transitions — verify actor owns this merchant
     if (actorRole === "merchant") {
-      const merchantId = (
-        user.app_metadata as Record<string, string> | undefined
-      )?.["merchant_id"];
+      const merchantId = meta?.["merchant_id"];
       if (merchantId !== order.merchant_id) {
         return json({ error: "Bu sipariş size ait değil." }, 403);
       }
     }
 
-    // For courier transitions — verify actor is assigned
     if (actorRole === "courier") {
-      const { data: assignment } = await admin
-        .from("orders")
-        .select("courier_id")
-        .eq("id", order_id)
-        .single();
-
-      const courierId = (
-        user.app_metadata as Record<string, string> | undefined
-      )?.["courier_id"];
-
-      if (!assignment || assignment.courier_id !== courierId) {
-        return json({ error: "Bu sipariş size atanmamış." }, 403);
+      let courierId = meta?.["courier_id"];
+      if (!courierId) {
+        const { data: row } = await admin
+          .from("couriers")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        courierId = row?.id;
+      }
+      if (!order.courier_id || order.courier_id !== courierId) {
+        return json(
+          { error: "Bu sipariş size atanmamış.", code: "NOT_ASSIGNED_COURIER" },
+          403,
+        );
       }
     }
 
-    if (new_status === "ASSIGNED" && actorRole === "admin" && !courier_id) {
-      return json({ error: "Kurye ataması için courier_id zorunludur." }, 400);
+    if (new_status === "ASSIGNED") {
+      if (actorRole !== "admin") {
+        return json(
+          {
+            error: "Kurye ataması yalnızca yönetici tarafından yapılabilir.",
+            code: "ASSIGNMENT_FORBIDDEN",
+          },
+          403,
+        );
+      }
+      if (!courier_id) {
+        return json({ error: "Kurye ataması için courier_id zorunludur." }, 400);
+      }
+
+      const { data: merchant } = await admin
+        .from("merchants")
+        .select("delivery_mode")
+        .eq("id", order.merchant_id)
+        .single();
+
+      const mode = (merchant?.delivery_mode ?? "PLATFORM_COURIER") as DeliveryMode;
+      if (mode === "MERCHANT_DELIVERY") {
+        return json(
+          {
+            error: "Bu işletme kendi kuryesini kullanıyor; platform ataması yapılamaz.",
+            code: "DELIVERY_MODE_MERCHANT_ONLY",
+          },
+          403,
+        );
+      }
+
+      const { data: courierRow } = await admin
+        .from("couriers")
+        .select("id, is_active, merchant_id")
+        .eq("id", courier_id)
+        .maybeSingle();
+
+      if (!courierRow?.is_active) {
+        return json({ error: "Kurye bulunamadı veya aktif değil." }, 400);
+      }
+
+      if (mode === "PLATFORM_COURIER" && courierRow.merchant_id != null) {
+        return json(
+          {
+            error: "Platform kuryesi gerekli; işletme kuryesi atanamaz.",
+            code: "DELIVERY_MODE_PLATFORM_ONLY",
+          },
+          403,
+        );
+      }
     }
 
-    const orderUpdate: { status: OrderStatus; courier_id?: string } = {
-      status: new_status,
-    };
+    const now = new Date().toISOString();
+    const orderUpdate: Record<string, unknown> = { status: new_status };
+
     if (new_status === "ASSIGNED" && courier_id) {
       orderUpdate.courier_id = courier_id;
+      orderUpdate.assigned_at = now;
+    }
+    if (new_status === "PICKED_UP") {
+      orderUpdate.picked_up_at = now;
+    }
+    if (new_status === "IN_TRANSIT") {
+      orderUpdate.picked_up_at = order.picked_up_at ?? now;
     }
 
     const { error: updateError } = await admin
