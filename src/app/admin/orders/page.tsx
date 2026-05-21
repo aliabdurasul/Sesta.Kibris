@@ -23,13 +23,15 @@ async function getAllOrders() {
   const supabase = createAdminServerClient();
   const { data } = await supabase
     .from("orders")
-    .select(`id, status, total_amount, created_at, merchants(name)`)
+    .select(
+      `id, status, total_amount, merchant_id, created_at, merchants!left(name)`,
+    )
     .order("created_at", { ascending: false })
     .limit(100);
 
   return (data ?? []) as (Pick<
     OrderRow,
-    "id" | "status" | "total_amount" | "created_at"
+    "id" | "status" | "total_amount" | "merchant_id" | "created_at"
   > & { merchants: { name: string } | null })[];
 }
 
@@ -56,7 +58,7 @@ export default async function AdminOrdersPage() {
           >
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {order.merchants?.name ?? "—"}
+                {order.merchants?.name ?? "Unknown Merchant"}
               </p>
               <p className="text-xs text-gray-400">
                 {new Date(order.created_at).toLocaleString("tr-TR")} ·{" "}

@@ -154,11 +154,29 @@ Deno.serve(async (req: Request) => {
         );
       }
     } else if (userId) {
-      const { data: customer, error: customerError } = await admin
+      let { data: customer, error: customerError } = await admin
         .from("customers")
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
+
+      if (!customer && !customerError) {
+        const { data: created, error: insertError } = await admin
+          .from("customers")
+          .insert({
+            id: userId,
+            user_id: userId,
+            full_name: guestName ?? "Müşteri",
+            phone: guestPhone ?? "0000000000",
+          })
+          .select("id")
+          .single();
+        if (insertError || !created) {
+          console.error("Customer auto-create error:", insertError);
+          return json({ error: "Müşteri kaydı oluşturulamadı." }, 500);
+        }
+        customer = created;
+      }
 
       if (customerError || !customer) {
         return json({ error: "Müşteri kaydı bulunamadı." }, 404);
@@ -281,7 +299,7 @@ Deno.serve(async (req: Request) => {
       from_status: null,
       to_status: "PENDING",
       actor_role: isGuest ? "guest" : "customer",
-      actor_id: userId,
+      actor_id: isGuest ? null : userId,
       note: isGuest ? "Misafir sipariş oluşturuldu" : "Sipariş oluşturuldu",
     });
 

@@ -275,12 +275,8 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   // layout render instead of redirecting to the same location.
   if (resolved.role !== allowedRole) {
     const target = getRoleHomePath(resolved.role);
-    const requiredHome = getRoleHomePath(allowedRole);
     const alreadyThere =
       currentPath === target || currentPath.startsWith(target + "/");
-    const inRequiredSubtree =
-      currentPath === requiredHome ||
-      currentPath.startsWith(requiredHome + "/");
 
     if (IS_DEV) {
       log.info("auth.require_role.mismatch", {
@@ -289,19 +285,7 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
         path: currentPath,
         target,
         alreadyThere,
-        inRequiredSubtree,
       });
-    }
-
-    // Multi-role: JWT active role differs but user may access this dashboard
-    if (inRequiredSubtree && (await userHasRole(user.id, allowedRole))) {
-      const profile = await resolveProfileForRole(user.id, allowedRole);
-      return {
-        id: user.id,
-        email: user.email ?? "",
-        role: allowedRole,
-        ...profile,
-      };
     }
 
     if (alreadyThere) {
@@ -339,7 +323,13 @@ export function getRoleHomePath(role: UserRole): string {
 export async function signOut(): Promise<void> {
   const supabase = await createServerClient();
   await supabase.auth.signOut();
-  redirect("/");
+  const { cookies } = await import("next/headers");
+  const store = await cookies();
+  const { clearSessionAuxCookies } = await import("@/lib/auth/session-cookies");
+  clearSessionAuxCookies((name, value, options) => {
+    store.set(name, value, options);
+  });
+  redirect("/merchants");
 }
 
 // ─── Safe context (never throws) ─────────────────────────────────────────────

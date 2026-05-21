@@ -151,7 +151,9 @@ export function MerchantOrderQueue({ initialOrders, merchantId }: Props) {
       {orders.map((order) => {
         const isLoading = loadingId === order.id;
         const addr = order.delivery_address as Record<string, string>;
-        const items = order.order_items;
+        const items = (order.order_items ?? []).filter(
+          (item) => item?.id && item?.product_name,
+        );
 
         return (
           <div

@@ -18,7 +18,7 @@ async function getAdminData() {
     supabase
       .from("orders")
       .select(
-        `id, status, total_amount, merchant_id, courier_id, created_at, merchants(name)`,
+        `id, status, total_amount, merchant_id, courier_id, created_at, merchants!left(name)`,
       )
       .in("status", [
         "PENDING",

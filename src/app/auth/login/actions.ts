@@ -21,8 +21,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { resolveUserRole, getRoleHomePath, userMustChangePassword } from "@/lib/auth";
+import {
+  ACTIVE_ROLE_COOKIE,
+  setActiveRoleCookie,
+  clearSessionAuxCookies,
+} from "@/lib/auth/session-cookies";
 import { isSafeRedirectPath } from "@/lib/routing/safe-path";
 import { log } from "@/lib/logger";
+import { cookies } from "next/headers";
 
 type ActionState = { error: string } | null;
 
@@ -39,6 +45,7 @@ export async function loginAction(
   }
 
   const supabase = await createServerClient();
+  const cookieStore = await cookies();
 
   // Already signed in — skip duplicate signInWithPassword (prevents double POST)
   const { data: existingUserData } = await supabase.auth.getUser();
@@ -49,10 +56,15 @@ export async function loginAction(
       existingUser.app_metadata as Record<string, string> | undefined,
     );
     if (existingResolved) {
+      setActiveRoleCookie((name, value, options) => {
+        cookieStore.set(name, value, options);
+      }, existingResolved.role);
       if (isSafeRedirectPath(redirectTo)) redirect(redirectTo);
       redirect(getRoleHomePath(existingResolved.role));
     }
   }
+
+  const previousRole = cookieStore.get(ACTIVE_ROLE_COOKIE)?.value;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -90,6 +102,23 @@ export async function loginAction(
     log.warn("login.no_role", { userId, email });
     redirect("/auth/role-recovery");
   }
+
+  if (previousRole && previousRole !== resolved.role) {
+    log.info("login.role_switch", {
+      userId,
+      from: previousRole,
+      to: resolved.role,
+    });
+    await supabase.auth.signOut();
+    clearSessionAuxCookies((name, value, options) => {
+      cookieStore.set(name, value, options);
+    });
+    redirect("/auth/login?reason=role_switch");
+  }
+
+  setActiveRoleCookie((name, value, options) => {
+    cookieStore.set(name, value, options);
+  }, resolved.role);
 
   log.info("login.ok", { userId, role: resolved.role });
 

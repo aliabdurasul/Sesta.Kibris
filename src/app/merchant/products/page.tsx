@@ -16,7 +16,8 @@ async function getMerchantProducts(userId: string) {
   const { data: merchantData } = await supabase
     .from("merchants")
     .select("id")
-    .eq("user_id", userId)
+    .or(`user_id.eq.${userId},owner_user_id.eq.${userId}`)
+    .limit(1)
     .maybeSingle();
 
   const merchant = merchantData as Pick<MerchantRow, "id"> | null;

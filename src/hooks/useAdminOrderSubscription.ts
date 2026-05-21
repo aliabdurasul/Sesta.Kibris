@@ -38,7 +38,9 @@ export function useAdminOrderSubscription({
   const fetchOrders = useCallback(async (): Promise<AdminLiveOrder[]> => {
     const { data } = await supabase
       .from("orders")
-      .select("id, status, total_amount, merchant_id, courier_id, created_at, merchants(name)")
+      .select(
+        "id, status, total_amount, merchant_id, courier_id, created_at, merchants!left(name)",
+      )
       .in("status", statusesRef)
       .order("created_at", { ascending: false });
     return (data ?? []) as AdminLiveOrder[];

@@ -137,7 +137,7 @@ export function AdminOrderAssignment({
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-gray-900">
-                {order.merchants?.name ?? "Market"}
+                {order.merchants?.name ?? "Unknown Merchant"}
               </p>
               <p className="text-xs text-gray-400">
                 #{order.id.slice(-8).toUpperCase()} ·{" "}

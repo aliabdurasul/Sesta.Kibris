@@ -1,8 +1,11 @@
 /**
- * POST /auth/signout — clears Supabase session cookies and redirects home.
+ * POST /auth/signout — full session reset (Supabase + app cookies).
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  clearSessionAuxCookies,
+} from "@/lib/auth/session-cookies";
 import type { Database } from "@/types/database";
 
 export async function POST(request: NextRequest) {
@@ -25,6 +28,10 @@ export async function POST(request: NextRequest) {
   });
 
   await supabase.auth.signOut();
+
+  clearSessionAuxCookies((name, value, options) => {
+    response.cookies.set(name, value, options);
+  });
 
   return response;
 }

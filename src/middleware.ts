@@ -28,6 +28,7 @@ import {
 } from "@/lib/guest/session";
 import { isGuestAllowedPath } from "@/lib/middleware/guest-paths";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
+import { ACTIVE_ROLE_COOKIE } from "@/lib/auth/session-cookies";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -101,7 +102,7 @@ export default async function middleware(request: NextRequest) {
     return result instanceof NextResponse ? result : NextResponse.next();
   }
 
-  let { response, user, supabase } = result;
+  let { response, user } = result;
   response = ensureGuestCookie(request, response, !!user);
 
   const gated = protectedMatch(pathname);
@@ -156,23 +157,18 @@ export default async function middleware(request: NextRequest) {
     return response;
   }
 
-  // ── GUARD 2: Multi-role — JWT role differs but user has required role ───
-  if (userRole !== requiredRole && supabase) {
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id);
-    const hasRequired = (roleRows ?? []).some(
-      (r) => (r as { role: string }).role === requiredRole,
-    );
-    if (hasRequired) {
-      if (IS_DEV) {
-        console.log(
-          `[AUTH TRACE] middleware | multi-role pass | jwt=${userRole} required=${requiredRole} path=${pathname}`,
-        );
-      }
-      return response;
+  // ── GUARD 2: Role changed without re-login ───────────────────────────────
+  const activeRole = request.cookies.get(ACTIVE_ROLE_COOKIE)?.value;
+  if (userRole && activeRole && userRole !== activeRole) {
+    if (IS_DEV) {
+      console.log(
+        `[AUTH TRACE] middleware | role cookie mismatch jwt=${userRole} cookie=${activeRole} → login`,
+      );
     }
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    loginUrl.searchParams.set("reason", "role_changed");
+    return NextResponse.redirect(loginUrl);
   }
 
   // ── GUARD 3: Already at destination ─────────────────────────────────────

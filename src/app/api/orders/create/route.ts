@@ -2,17 +2,16 @@
  * POST /api/orders/create
  *
  * Does NOT require a Supabase session for guests.
- * Uses service role to invoke create-order (avoids Edge gateway 401 without JWT).
+ * guest_user_id is ALWAYS set server-side via ensureGuestUserId() — never trusted from client.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureGuestUserId } from "@/lib/guest/server";
-import { guestCookieOptions, isValidGuestUserId } from "@/lib/guest/session";
+import { guestCookieOptions } from "@/lib/guest/session";
+import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
-
-type AuthMode = "guest" | "authenticated";
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
@@ -41,9 +40,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let authMode: AuthMode = "guest";
+  // Never trust client guest identity
+  delete body["guest_user_id"];
+
+  const guestUserId = await ensureGuestUserId();
+
+  let authMode: "guest" | "authenticated" = "guest";
   let userId: string | null = null;
-  let jwtPresent = false;
 
   try {
     const supabase = await createServerClient();
@@ -53,27 +56,9 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!userError && user) {
-      const role = (user.app_metadata as Record<string, string> | undefined)?.[
-        "role"
-      ];
-      if (role === "customer") {
-        authMode = "authenticated";
-        userId = user.id;
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        jwtPresent = !!session?.access_token;
-      } else if (role) {
-        return NextResponse.json(
-          {
-            error:
-              "Bu hesap türü sipariş veremez. Misafir olarak devam edin veya müşteri hesabı kullanın.",
-            code: "ROLE_NOT_CUSTOMER",
-            role,
-          },
-          { status: 403 },
-        );
-      }
+      const resolved = await resolveCheckoutAuth(supabase, user);
+      authMode = resolved.mode;
+      userId = resolved.userId;
     }
   } catch (err) {
     log.warn("api.orders.create.session_read_failed", {
@@ -82,9 +67,13 @@ export async function POST(request: NextRequest) {
     authMode = "guest";
   }
 
-  const guestUserId = await ensureGuestUserId();
-
-  if (authMode === "guest") {
+  if (authMode === "authenticated" && userId) {
+    body["authenticated_user_id"] = userId;
+    delete body["guest_name"];
+    delete body["guest_phone"];
+    delete body["guest_email"];
+  } else {
+    authMode = "guest";
     body["guest_user_id"] = guestUserId;
     if (!body["guest_name"] || !body["guest_phone"]) {
       return NextResponse.json(
@@ -92,36 +81,15 @@ export async function POST(request: NextRequest) {
           error: "Misafir sipariş için ad ve telefon zorunludur.",
           code: "GUEST_FIELDS_REQUIRED",
           authMode,
-          guest_user_id: guestUserId,
         },
         { status: 400 },
       );
     }
-  } else {
-    body["authenticated_user_id"] = userId;
-    delete body["guest_user_id"];
-  }
-
-  const guestId = body["guest_user_id"];
-  if (
-    authMode === "guest" &&
-    typeof guestId === "string" &&
-    !isValidGuestUserId(guestId)
-  ) {
-    return NextResponse.json(
-      {
-        error: "Geçersiz misafir oturumu.",
-        code: "INVALID_GUEST_ID",
-        guest_user_id: guestId,
-      },
-      { status: 400 },
-    );
   }
 
   log.info("api.orders.create", {
     authMode,
     guest_user_id: authMode === "guest" ? guestUserId : null,
-    jwtPresent,
     userId: userId ?? null,
   });
 
@@ -159,7 +127,10 @@ export async function POST(request: NextRequest) {
   try {
     payload = (await edgeRes.json()) as Record<string, unknown>;
   } catch {
-    payload = { error: "Sipariş servisi geçersiz yanıt döndü.", code: "EDGE_BAD_JSON" };
+    payload = {
+      error: "Sipariş servisi geçersiz yanıt döndü.",
+      code: "EDGE_BAD_JSON",
+    };
   }
 
   if (!edgeRes.ok) {
@@ -169,28 +140,14 @@ export async function POST(request: NextRequest) {
       payload,
     });
     return NextResponse.json(
-      {
-        ...payload,
-        authMode,
-        guest_user_id: authMode === "guest" ? guestUserId : undefined,
-        jwtPresent,
-        source: "create-order",
-      },
+      { ...payload, authMode, source: "create-order" },
       { status: edgeRes.status },
     );
   }
 
-  const response = NextResponse.json(
-    {
-      ...payload,
-      authMode,
-    },
-    { status: edgeRes.status },
-  );
+  const response = NextResponse.json({ ...payload, authMode }, { status: edgeRes.status });
 
-  if (authMode === "guest") {
-    response.cookies.set("guest_user_id", guestUserId, guestCookieOptions());
-  }
+  response.cookies.set("guest_user_id", guestUserId, guestCookieOptions());
 
   return response;
 }

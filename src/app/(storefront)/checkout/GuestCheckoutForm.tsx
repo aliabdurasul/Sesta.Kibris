@@ -27,11 +27,7 @@ const guestSchema = z.object({
 
 type GuestForm = z.infer<typeof guestSchema>;
 
-interface Props {
-  guestUserId: string | null;
-}
-
-export function GuestCheckoutForm({ guestUserId }: Props) {
+export function GuestCheckoutForm() {
   const router = useRouter();
   const { items, merchantId, getTotal, clearCart } = useCartStore();
   const [submitting, setSubmitting] = useState(false);
@@ -88,7 +84,6 @@ export function GuestCheckoutForm({ guestUserId }: Props) {
           district: data.district,
         },
         customer_notes: data.notes ?? null,
-        ...(guestUserId ? { guest_user_id: guestUserId } : {}),
         guest_name: data.guestName.trim(),
         guest_phone: data.guestPhone.trim(),
         guest_email: data.guestEmail?.trim() || null,
