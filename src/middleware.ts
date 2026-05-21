@@ -26,6 +26,7 @@ import {
   isValidGuestUserId,
   newGuestUserId,
 } from "@/lib/guest/session";
+import { isGuestAllowedPath } from "@/lib/middleware/guest-paths";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -36,19 +37,6 @@ const PROTECTED: { segment: string; role: string }[] = [
   { segment: "courier", role: "courier" },
   { segment: "admin", role: "admin" },
   { segment: "customer", role: "customer" },
-];
-
-const PUBLIC_PREFIXES = [
-  "/_next",
-  "/api",
-  "/auth",
-  "/merchants",
-  "/markets",
-  "/checkout",
-  "/cart",
-  "/payment-init",
-  "/offline",
-  "/setup-admin",
 ];
 
 function pathMatchesProtectedSegment(pathname: string, segment: string): boolean {
@@ -64,9 +52,8 @@ function protectedMatch(pathname: string): { segment: string; role: string } | n
 }
 
 function isPublicPath(pathname: string): boolean {
-  if (pathname === "/") return true;
-  if (pathname.includes(".")) return true;
-  return PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  if (pathname.startsWith("/_next")) return true;
+  return isGuestAllowedPath(pathname);
 }
 
 const ROOT_WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -127,6 +114,9 @@ export default async function middleware(request: NextRequest) {
   const requiredRole = gated.role;
 
   if (!user) {
+    if (isGuestAllowedPath(pathname)) {
+      return ensureGuestCookie(request, response, false);
+    }
     if (IS_DEV) {
       console.log(`[AUTH TRACE] middleware | path=${pathname} | no session → /auth/login`);
     }

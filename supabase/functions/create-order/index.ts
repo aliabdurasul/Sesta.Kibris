@@ -207,6 +207,7 @@ Deno.serve(async (req: Request) => {
         guest_user_id: guestUserId,
         guest_name: guestName,
         guest_phone: guestPhone,
+        guest_email: body.guest_email?.trim() || null,
       })
       .select("id")
       .single();

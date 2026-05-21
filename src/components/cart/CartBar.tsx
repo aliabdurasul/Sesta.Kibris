@@ -2,16 +2,23 @@
 
 /**
  * Cart summary bar — sticky bottom of storefront pages.
- * Visible only when cart has items.
- * Links to /checkout.
+ * Waits for client mount so Zustand/sessionStorage does not mismatch SSR HTML.
  */
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cart-store";
 
 export function CartBar() {
+  const [mounted, setMounted] = useState(false);
   const { items, getTotal, getItemCount } = useCartStore();
-  const count = getItemCount();
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const count = getItemCount();
   if (count === 0) return null;
 
   const total = getTotal();

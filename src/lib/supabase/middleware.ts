@@ -24,6 +24,7 @@
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { supabaseFetch } from "@/lib/supabase/fetch-config";
 
 import type { Database } from "@/types/database";
 
@@ -53,6 +54,11 @@ export async function updateSession(
   }
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: true,
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();

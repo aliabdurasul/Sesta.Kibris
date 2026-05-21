@@ -6,6 +6,9 @@
 import { CartBar } from "@/components/cart/CartBar";
 import { getSession, getRoleHomePath } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function StorefrontLayout({
   children,
 }: {

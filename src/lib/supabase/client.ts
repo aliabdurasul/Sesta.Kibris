@@ -6,6 +6,7 @@
  * NEVER import serverEnv here; this runs in the browser.
  */
 import { createBrowserClient as createSupabaseBrowserClient } from "@supabase/ssr";
+import { supabaseFetch } from "@/lib/supabase/fetch-config";
 
 import type { Database } from "@/types/database";
 
@@ -20,6 +21,7 @@ export function createBrowserClient() {
   }
 
   return createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
     auth: {
       detectSessionInUrl: true,
       flowType: "pkce",

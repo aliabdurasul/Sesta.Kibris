@@ -14,6 +14,9 @@ import { MerchantSlugNav } from "@/components/merchant/MerchantSlugNav";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];

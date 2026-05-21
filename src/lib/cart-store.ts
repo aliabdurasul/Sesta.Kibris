@@ -114,9 +114,16 @@ export const useCartStore = create<CartState & CartActions>()(
     }),
     {
       name: "sesta-cart",
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? sessionStorage : localStorage,
-      ),
+      storage: createJSONStorage(() => {
+        if (typeof window === "undefined") {
+          return {
+            getItem: () => null,
+            setItem: () => undefined,
+            removeItem: () => undefined,
+          };
+        }
+        return sessionStorage;
+      }),
       partialize: (state) => ({
         merchantId: state.merchantId,
         merchantSlug: state.merchantSlug,

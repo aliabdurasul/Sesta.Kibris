@@ -56,21 +56,6 @@ export function GuestCheckoutForm({ guestUserId }: Props) {
     );
   }
 
-  if (!guestUserId) {
-    return (
-      <div className="rounded-2xl bg-amber-50 p-6 text-center text-sm text-amber-900 ring-1 ring-amber-200">
-        <p>Misafir oturumu başlatılamadı.</p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="mt-3 text-blue-600 underline"
-        >
-          Sayfayı yenile
-        </button>
-      </div>
-    );
-  }
-
   if (items.length === 0) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
@@ -92,13 +77,6 @@ export function GuestCheckoutForm({ guestUserId }: Props) {
     setServerError(null);
 
     try {
-      const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-      const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
-
-      if (!supabaseUrl || !anonKey) {
-        throw new Error("Yapılandırma hatası.");
-      }
-
       const body = {
         merchant_id: merchantId,
         items: items.map((i) => ({
@@ -110,18 +88,16 @@ export function GuestCheckoutForm({ guestUserId }: Props) {
           district: data.district,
         },
         customer_notes: data.notes ?? null,
-        guest_user_id: guestUserId,
+        ...(guestUserId ? { guest_user_id: guestUserId } : {}),
         guest_name: data.guestName.trim(),
         guest_phone: data.guestPhone.trim(),
         guest_email: data.guestEmail?.trim() || null,
       };
 
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-order`, {
+      const res = await fetch("/api/orders/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
 

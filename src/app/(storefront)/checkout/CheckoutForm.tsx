@@ -102,20 +102,6 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
     setServerError(null);
 
     try {
-      const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-      const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
-
-      if (!supabaseUrl || !anonKey) {
-        throw new Error("Yapılandırma hatası.");
-      }
-
-      const { getBrowserAccessToken } = await import("@/lib/supabase/access-token");
-      const accessToken = await getBrowserAccessToken();
-
-      if (!accessToken) {
-        throw new Error("Oturum bulunamadı. Lütfen tekrar giriş yapın.");
-      }
-
       const body = {
         merchant_id: merchantId,
         items: items.map((i) => ({
@@ -126,16 +112,13 @@ export function CheckoutForm({ savedAddresses, userId }: CheckoutFormProps) {
           full_address: data.fullAddress,
           district: data.district,
         },
-        notes: data.notes ?? null,
+        customer_notes: data.notes ?? null,
       };
 
-      const res = await fetch(`${supabaseUrl}/functions/v1/create-order`, {
+      const res = await fetch("/api/orders/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(body),
       });
 

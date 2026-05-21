@@ -157,6 +157,7 @@ export interface Database {
           guest_user_id: string | null;
           guest_name: string | null;
           guest_phone: string | null;
+          guest_email: string | null;
           rejection_reason: string | null;
           failure_reason: string | null;
           created_at: string;

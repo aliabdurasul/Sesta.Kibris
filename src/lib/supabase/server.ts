@@ -7,6 +7,7 @@
  */
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabaseFetch } from "@/lib/supabase/fetch-config";
 
 import type { Database } from "@/types/database";
 
@@ -23,6 +24,7 @@ export async function createServerClient() {
   }
 
   return createSupabaseServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: supabaseFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();
