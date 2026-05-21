@@ -1,0 +1,6 @@
+# Edge Function: allow server-side + guest checkout via service role / apikey
+[functions.create-order]
+verify_jwt = false
+
+[functions.transition-order]
+verify_jwt = true

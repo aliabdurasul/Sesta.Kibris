@@ -32,6 +32,8 @@ interface RequestBody {
   delivery_address: DeliveryAddress;
   customer_notes?: string | null;
   notes?: string | null;
+  /** Set by /api/orders/create for logged-in customers */
+  authenticated_user_id?: string | null;
   guest_user_id?: string | null;
   guest_name?: string | null;
   guest_phone?: string | null;
@@ -54,36 +56,69 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
-    const authHeader = req.headers.get("Authorization");
+    const body = (await req.json()) as RequestBody;
+    const checkoutMode = req.headers.get("X-Checkout-Auth-Mode");
+
     let userId: string | null = null;
     let isGuest = true;
 
-    if (authHeader?.startsWith("Bearer ")) {
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const {
-        data: { user },
-        error: authError,
-      } = await userClient.auth.getUser();
+    // Trusted server proxy (/api/orders/create) — do not require end-user JWT
+    if (checkoutMode === "authenticated") {
+      const authUserId = body.authenticated_user_id?.trim() ?? null;
+      if (!authUserId) {
+        return json(
+          {
+            error: "Kimlik doğrulama başarısız.",
+            code: "MISSING_AUTHENTICATED_USER_ID",
+          },
+          401,
+        );
+      }
+      userId = authUserId;
+      isGuest = false;
+    } else if (checkoutMode === "guest") {
+      isGuest = true;
+    } else {
+      // Direct client call (legacy): optional Bearer customer JWT
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const {
+          data: { user },
+          error: authError,
+        } = await userClient.auth.getUser();
 
-      if (!authError && user) {
-        const userRole = (
-          user.app_metadata as Record<string, string> | undefined
-        )?.["role"];
-        if (userRole === "customer") {
-          userId = user.id;
-          isGuest = false;
-        } else if (userRole) {
-          return json(
-            { error: "Yalnızca müşteriler veya misafirler sipariş verebilir." },
-            403,
-          );
+        if (!authError && user) {
+          const userRole = (
+            user.app_metadata as Record<string, string> | undefined
+          )?.["role"];
+          if (userRole === "customer") {
+            userId = user.id;
+            isGuest = false;
+          } else if (userRole) {
+            return json(
+              {
+                error:
+                  "Yalnızca müşteriler veya misafirler sipariş verebilir.",
+                code: "ROLE_NOT_ALLOWED",
+              },
+              403,
+            );
+          }
         }
       }
+      // No JWT: guest if guest_user_id + guest fields present
+      if (
+        !userId &&
+        body.guest_user_id &&
+        body.guest_name &&
+        body.guest_phone
+      ) {
+        isGuest = true;
+      }
     }
-
-    const body = (await req.json()) as RequestBody;
     const { merchant_id, items, delivery_address } = body;
     const customerNotes = body.customer_notes ?? body.notes ?? null;
 
@@ -130,7 +165,14 @@ Deno.serve(async (req: Request) => {
       }
       customerId = customer.id;
     } else {
-      return json({ error: "Kimlik doğrulama gerekli veya misafir bilgisi girin." }, 401);
+      return json(
+        {
+          error: "Kimlik doğrulama gerekli veya misafir bilgisi girin.",
+          code: "AUTH_REQUIRED",
+          hint: "Use POST /api/orders/create from the storefront or send X-Checkout-Auth-Mode guest with guest_user_id.",
+        },
+        401,
+      );
     }
 
     const { data: merchant, error: merchantError } = await admin
