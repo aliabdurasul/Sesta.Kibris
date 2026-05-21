@@ -3,14 +3,11 @@ import type { SessionUser } from "@/lib/auth";
 import { HomeHeader } from "@/components/landing/HomeHeader";
 import { HomeLocationSearch } from "@/components/landing/HomeLocationSearch";
 import { QuickInfoCards } from "@/components/landing/QuickInfoCards";
-import {
-  PromoHeroSlider,
-  buildPromoSlidesFromMerchants,
-} from "@/components/landing/PromoHeroSlider";
+import { PromoHeroSlider } from "@/components/landing/PromoHeroSlider";
+import { buildPromoSlidesFromMerchants } from "@/lib/landing/promo-slides";
 import { CategoryScroll } from "@/components/landing/CategoryScroll";
 import { MarketBrowseSection } from "@/components/landing/MarketBrowseSection";
 import { TrustBenefits } from "@/components/landing/TrustBenefits";
-import { HomeBottomNav } from "@/components/landing/HomeBottomNav";
 import type { MarketCardMerchant } from "@/components/landing/MarketCard";
 
 interface LandingPageProps {
@@ -53,8 +50,6 @@ export function LandingPage({ merchants, error, session }: LandingPageProps) {
 
         <TrustBenefits />
       </div>
-
-      <HomeBottomNav />
     </div>
   );
 }

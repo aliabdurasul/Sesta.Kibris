@@ -60,7 +60,9 @@ function TabIcon({ type, active }: { type: string; active: boolean }) {
 export function HomeBottomNav() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const cartCount = useCartStore((s) => s.getItemCount());
+  const cartCount = useCartStore((s) =>
+    s.items.reduce((sum, item) => sum + item.quantity, 0),
+  );
 
   useEffect(() => setMounted(true), []);
 
