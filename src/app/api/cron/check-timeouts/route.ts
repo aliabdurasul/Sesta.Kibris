@@ -155,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { data: hybridReady } = await admin
       .from("orders")
       .select(
-        "id, ready_at, merchants!inner(delivery_mode, hybrid_assign_timeout_minutes)",
+        "id, ready_at, merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
       )
       .eq("status", "READY")
       .is("assignment_escalated_at", null);
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { data: hybridReady, error: hybridErr } = await admin
     .from("orders")
     .select(
-      "id, ready_at, assignment_escalated_at, merchants!inner(delivery_mode, hybrid_assign_timeout_minutes)",
+      "id, ready_at, assignment_escalated_at, merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
     )
     .eq("status", "READY")
     .is("assignment_escalated_at", null);

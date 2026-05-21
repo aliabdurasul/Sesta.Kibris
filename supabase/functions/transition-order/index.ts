@@ -2,7 +2,7 @@
  * Edge Function: POST /functions/v1/transition-order
  *
  * Delivery modes control READY → ASSIGNED:
- *   MERCHANT_DELIVERY — merchant assigns / auto default courier; admin cannot assign
+ *   MERCHANT_DELIVERY — merchant assigns; admin may override with merchant-owned courier
  *   PLATFORM_COURIER  — admin assigns platform courier only
  *   HYBRID            — merchant first; admin after ready_at + timeout
  *
@@ -64,6 +64,56 @@ interface MerchantRow {
   delivery_mode: DeliveryMode;
   default_courier_id: string | null;
   hybrid_assign_timeout_minutes: number;
+}
+
+type SupabaseAdmin = ReturnType<typeof createClient>;
+
+/** Resolve merchant_id from JWT or merchants.user_id / owner_user_id */
+async function resolveMerchantIdForUser(
+  admin: SupabaseAdmin,
+  userId: string,
+  meta: Record<string, string> | undefined,
+): Promise<string | null> {
+  const fromMeta = meta?.["merchant_id"];
+  if (fromMeta) return fromMeta;
+
+  const { data } = await admin
+    .from("merchants")
+    .select("id")
+    .or(`user_id.eq.${userId},owner_user_id.eq.${userId}`)
+    .limit(1)
+    .maybeSingle();
+
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+/** JWT role may be stale; elevate when user_roles or merchants row proves ownership */
+async function elevateToMerchantIfAuthorized(
+  admin: SupabaseAdmin,
+  userId: string,
+  meta: Record<string, string> | undefined,
+  orderMerchantId: string,
+): Promise<boolean> {
+  const merchantId = await resolveMerchantIdForUser(admin, userId, meta);
+  if (!merchantId || merchantId !== orderMerchantId) return false;
+
+  const { data: roleRow } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "merchant")
+    .maybeSingle();
+
+  if (roleRow) return true;
+
+  const { data: owned } = await admin
+    .from("merchants")
+    .select("id")
+    .eq("id", orderMerchantId)
+    .or(`user_id.eq.${userId},owner_user_id.eq.${userId}`)
+    .maybeSingle();
+
+  return !!owned;
 }
 
 Deno.serve(async (req: Request) => {
@@ -157,7 +207,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!transition.allowedRoles.includes(actorRole)) {
+    if (
+      actorRole &&
+      !transition.allowedRoles.includes(actorRole) &&
+      transition.allowedRoles.includes("merchant")
+    ) {
+      const elevated = await elevateToMerchantIfAuthorized(
+        admin,
+        user.id,
+        meta,
+        order.merchant_id,
+      );
+      if (elevated) actorRole = "merchant";
+    }
+
+    if (!actorRole || !transition.allowedRoles.includes(actorRole)) {
       const code =
         new_status === "ASSIGNED"
           ? "ASSIGNMENT_FORBIDDEN"
@@ -165,13 +229,16 @@ Deno.serve(async (req: Request) => {
             ? "PICKUP_FORBIDDEN"
             : "TRANSITION_FORBIDDEN";
       return json(
-        { error: `${actorRole} bu geçişi gerçekleştiremez.`, code },
+        {
+          error: `${actorRole ?? "hesap"} bu geçişi gerçekleştiremez.`,
+          code,
+        },
         403,
       );
     }
 
     if (actorRole === "merchant") {
-      const merchantId = meta?.["merchant_id"];
+      const merchantId = await resolveMerchantIdForUser(admin, user.id, meta);
       if (merchantId !== order.merchant_id) {
         return json({ error: "Bu sipariş size ait değil." }, 403);
       }
@@ -222,15 +289,6 @@ Deno.serve(async (req: Request) => {
         !!order.assignment_escalated_at || Date.now() >= hybridDeadlineMs;
 
       if (actorRole === "admin") {
-        if (mode === "MERCHANT_DELIVERY") {
-          return json(
-            {
-              error: "Bu işletme kendi kuryesini atar; yönetici ataması yapılamaz.",
-              code: "DELIVERY_MODE_MERCHANT_ONLY",
-            },
-            403,
-          );
-        }
         if (mode === "HYBRID" && !hybridEscalated) {
           return json(
             {
@@ -314,6 +372,28 @@ Deno.serve(async (req: Request) => {
           return json(
             {
               error: "Platform kuryesi gerekli; işletme kuryesi seçilemez.",
+              code: "DELIVERY_MODE_PLATFORM_ONLY",
+            },
+            403,
+          );
+        }
+        if (
+          mode === "MERCHANT_DELIVERY" &&
+          courierRow.merchant_id !== order.merchant_id
+        ) {
+          return json(
+            {
+              error:
+                "Yalnızca bu işletmeye bağlı kurye atanabilir (yönetici geçersiz kılma).",
+              code: "DELIVERY_MODE_MERCHANT_ONLY",
+            },
+            403,
+          );
+        }
+        if (mode === "HYBRID" && hybridEscalated && courierRow.merchant_id != null) {
+          return json(
+            {
+              error: "Hibrit süre sonrası platform kuryesi gerekli.",
               code: "DELIVERY_MODE_PLATFORM_ONLY",
             },
             403,

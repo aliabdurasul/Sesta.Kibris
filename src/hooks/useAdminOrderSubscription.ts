@@ -62,7 +62,7 @@ export function useAdminOrderSubscription({
       .from("orders")
       .select(
         `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
-         merchants!left(name, delivery_mode, hybrid_assign_timeout_minutes)`,
+         merchants!orders_merchant_id_fkey(name, delivery_mode, hybrid_assign_timeout_minutes)`,
       )
       .in("status", statusesRef)
       .order("created_at", { ascending: false });

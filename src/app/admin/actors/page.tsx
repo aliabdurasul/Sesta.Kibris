@@ -23,7 +23,7 @@ async function getActors() {
     supabase
       .from("couriers")
       .select(
-        "id, full_name, phone, vehicle_type, is_active, is_available, merchant_id, created_at, merchants(name)",
+        "id, full_name, phone, vehicle_type, is_active, is_available, merchant_id, created_at, merchants!couriers_merchant_id_fkey(name)",
       )
       .order("created_at", { ascending: false })
       .limit(50),

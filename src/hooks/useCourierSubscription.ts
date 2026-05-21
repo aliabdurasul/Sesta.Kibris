@@ -39,7 +39,7 @@ export interface LiveDelivery {
 }
 
 const SELECT =
-  "id, status, total_amount, delivery_address, customer_notes, created_at, merchants(name, address, phone), order_items(id, quantity, product_name, line_total)";
+  "id, status, total_amount, delivery_address, customer_notes, created_at, merchants!orders_merchant_id_fkey(name, address, phone), order_items(id, quantity, product_name, line_total)";
 
 interface UseCourierSubscriptionOptions {
   courierId: string;
@@ -90,8 +90,10 @@ export function useCourierSubscription({
         return prev.filter((o) => o.id !== id);
       }
 
-      if (payload.eventType === "INSERT") {
-        if (prev.some((o) => o.id === id)) return prev;
+      if (
+        payload.eventType === "INSERT" ||
+        (payload.eventType === "UPDATE" && !prev.some((o) => o.id === id))
+      ) {
         void fetchOrders();
         return prev;
       }

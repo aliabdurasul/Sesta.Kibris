@@ -24,7 +24,7 @@ async function getAllOrders() {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, merchant_id, created_at, merchants!left(name)`,
+      `id, status, total_amount, merchant_id, created_at, merchants!orders_merchant_id_fkey(name)`,
     )
     .order("created_at", { ascending: false })
     .limit(100);

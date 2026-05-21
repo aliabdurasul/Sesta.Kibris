@@ -31,7 +31,7 @@ async function getAssignedOrders(courierId: string) {
     .from("orders")
     .select(
       `id, status, total_amount, delivery_address, customer_notes, created_at,
-       merchants(name, address, phone),
+       merchants!orders_merchant_id_fkey(name, address, phone),
        order_items(id, quantity, product_name, line_total)`,
     )
     .eq("courier_id", courierId)

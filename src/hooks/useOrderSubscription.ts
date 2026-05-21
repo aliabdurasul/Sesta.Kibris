@@ -96,14 +96,12 @@ export function useOrderSubscription({
         return prev.filter((o) => o.id !== id);
       }
 
-      if (payload.eventType === "INSERT") {
+      if (payload.eventType === "INSERT" || payload.eventType === "UPDATE") {
         void fetchOrders();
         return prev;
       }
 
-      return prev.map((o) =>
-        o.id === id ? { ...o, status } : o,
-      );
+      return prev;
     },
     [merchantId, statusesSet, fetchOrders],
   );

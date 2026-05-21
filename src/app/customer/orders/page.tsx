@@ -45,7 +45,7 @@ async function getCustomerOrders(userId: string) {
     .select(
       `
       id, status, total_amount, created_at,
-      merchants!left(name)
+      merchants!orders_merchant_id_fkey(name)
     `,
     )
     .eq("customer_id", userId)

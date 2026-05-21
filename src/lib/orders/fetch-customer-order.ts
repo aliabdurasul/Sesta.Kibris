@@ -45,7 +45,7 @@ export async function fetchCustomerOrderById(
     .select(
       `
       id, status, total_amount, delivery_address, customer_notes, created_at,
-      merchants!left(name, phone),
+      merchants!orders_merchant_id_fkey(name, phone),
       order_items(id, quantity, unit_price, product_name, line_total),
       order_status_log(id, to_status, from_status, note, created_at, actor_role)
     `,
