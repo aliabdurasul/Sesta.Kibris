@@ -3,7 +3,7 @@
 /**
  * Admin order monitoring — platform courier assignment only when delivery_mode allows.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getBrowserAccessToken } from "@/lib/supabase/access-token";
 import {
   useAdminOrderSubscription,
@@ -80,6 +80,7 @@ export function AdminOrderAssignment({
 }) {
   const { orders, setOrders } = useAdminOrderSubscription({
     initialOrders,
+    enableRealtime: false,
     activeStatuses: [
       "PENDING",
       "CONFIRMED",
@@ -92,14 +93,24 @@ export function AdminOrderAssignment({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[ADMIN SSR ORDERS]", initialOrders.length);
+      console.log("[ADMIN CLIENT STATE]", orders.length);
+    }
+  }, [initialOrders.length, orders.length]);
+
+  const displayOrders =
+    orders.length > 0 ? orders : initialOrders.length > 0 ? initialOrders : orders;
+
   const assignCourier = async (orderId: string, courierId: string) => {
     setLoadingId(orderId);
     setError(null);
 
     try {
       await assignCourierViaEdgeFunction(orderId, courierId);
-      setOrders((prev) =>
-        prev.map((o) =>
+      setOrders((prev: AdminLiveOrder[]) =>
+        prev.map((o: AdminLiveOrder) =>
           o.id === orderId ? { ...o, status: "ASSIGNED" as OrderStatus } : o,
         ),
       );
@@ -110,7 +121,7 @@ export function AdminOrderAssignment({
     }
   };
 
-  if (orders.length === 0) {
+  if (displayOrders.length === 0) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
         <p>Aktif sipariş yok.</p>
@@ -132,7 +143,7 @@ export function AdminOrderAssignment({
         </div>
       )}
 
-      {orders.map((order) => {
+      {displayOrders.map((order) => {
         const merchantMeta = order.merchant;
         const mode = (merchantMeta?.delivery_mode ??
           "PLATFORM_COURIER") as DeliveryMode;

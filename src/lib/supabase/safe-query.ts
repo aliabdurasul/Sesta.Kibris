@@ -28,3 +28,17 @@ export function assertSupabaseData<T>(
   }
   return (result.data ?? []) as T;
 }
+
+/** Safe client fetch — returns null on error (caller keeps previous state). */
+export async function fetchSupabaseList<T>(
+  label: string,
+  fetcher: () => Promise<{ data: T | null; error: { message: string } | null }>,
+): Promise<T | null> {
+  const result = await fetcher();
+  logSupabaseResult(label, result as { data: unknown; error: { message: string } | null });
+  if (result.error) {
+    console.error(`[${label} ERROR]`, result.error);
+    return null;
+  }
+  return (result.data ?? []) as T;
+}

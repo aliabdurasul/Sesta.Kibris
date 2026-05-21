@@ -13,6 +13,8 @@ import type {
 
 export type ConnectionStatus = "connecting" | "connected" | "reconnecting" | "error";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 export type OrderRealtimeFilter =
   | { kind: "admin" }
   | { kind: "merchant"; merchantId: string }
@@ -50,6 +52,33 @@ interface UseOrderRealtimeCoreOptions<T> {
     payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
   ) => T[] | null;
   getRowId?: (row: T) => string;
+  /**
+   * When true: never auto-refetch on connect/visible; never replace non-empty
+   * SSR baseline with an empty client fetch result.
+   */
+  preserveSsrBaseline?: boolean;
+  /** When false: SSR-only — no channel, no refetch (admin stabilization). */
+  enabled?: boolean;
+}
+
+function applyRowsUpdate<T>(
+  prev: T[],
+  next: T[],
+  preserveSsrBaseline: boolean,
+  label: string,
+): T[] {
+  if (!preserveSsrBaseline) {
+    return next;
+  }
+  if (next.length === 0 && prev.length > 0) {
+    if (IS_DEV) {
+      console.warn(
+        `[${label}] client fetch returned empty — keeping SSR baseline (${prev.length} rows)`,
+      );
+    }
+    return prev;
+  }
+  return next;
 }
 
 export function useOrderRealtimeCore<T extends { id: string }>({
@@ -58,6 +87,8 @@ export function useOrderRealtimeCore<T extends { id: string }>({
   fetchRows,
   mergeRow,
   getRowId = (r) => r.id,
+  preserveSsrBaseline = false,
+  enabled = true,
 }: UseOrderRealtimeCoreOptions<T>) {
   const [rows, setRows] = useState<T[]>(initialRows);
   const [connectionStatus, setConnectionStatus] =
@@ -66,31 +97,46 @@ export function useOrderRealtimeCore<T extends { id: string }>({
   const supabaseRef = useRef(createBrowserClient());
   const fetchRef = useRef(fetchRows);
   fetchRef.current = fetchRows;
+  const logLabel =
+    filter.kind === "admin"
+      ? "ADMIN REALTIME"
+      : filter.kind === "merchant"
+        ? "MERCHANT REALTIME"
+        : "COURIER REALTIME";
 
   const refetch = useCallback(async () => {
     try {
       const data = await fetchRef.current();
-      setRows(data);
+      setRows((prev) =>
+        applyRowsUpdate(prev, data, preserveSsrBaseline, logLabel),
+      );
+      if (IS_DEV) {
+        console.log(`[ADMIN CLIENT FETCH]`, data?.length ?? 0);
+      }
     } catch (err) {
-      if (process.env.NODE_ENV === "development") {
-        console.error(
-          "[realtime] refetch failed — keeping previous rows",
-          err,
-        );
+      if (IS_DEV) {
+        console.error(`[${logLabel}] refetch failed — keeping previous rows`, err);
       }
     }
-  }, []);
+  }, [preserveSsrBaseline, logLabel]);
 
   const initialKeyRef = useRef(initialRows.map((r) => r.id).join(","));
   useEffect(() => {
     const key = initialRows.map((r) => r.id).join(",");
     if (key !== initialKeyRef.current) {
       initialKeyRef.current = key;
-      setRows(initialRows);
+      setRows((prev) =>
+        applyRowsUpdate(prev, initialRows, preserveSsrBaseline, "SSR SYNC"),
+      );
     }
-  }, [initialRows]);
+  }, [initialRows, preserveSsrBaseline]);
 
   useEffect(() => {
+    if (!enabled) {
+      setConnectionStatus("connected");
+      return;
+    }
+
     const supabase = supabaseRef.current;
     const channelName = orderRealtimeChannelName(filter);
     const pgFilter = postgresFilter(filter);
@@ -115,18 +161,23 @@ export function useOrderRealtimeCore<T extends { id: string }>({
     const channel = supabase
       .channel(channelName)
       .on("postgres_changes", changeConfig, (payload) => {
+        if (IS_DEV && filter.kind === "admin") {
+          console.log("[ADMIN REALTIME EVENT]", payload.eventType, payload.new);
+        }
         if (mergeRow) {
           setRows((prev) => {
             const next = mergeRow(prev, payload);
             return next ?? prev;
           });
-        } else {
+        } else if (!preserveSsrBaseline) {
           void refetch();
         }
       })
       .on("system", { event: "connected" }, () => {
         setConnectionStatus("connected");
-        void refetch();
+        if (!preserveSsrBaseline) {
+          void refetch();
+        }
       })
       .on("system", { event: "disconnected" }, () => {
         setConnectionStatus("reconnecting");
@@ -142,7 +193,7 @@ export function useOrderRealtimeCore<T extends { id: string }>({
     channelRef.current = channel;
 
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && !preserveSsrBaseline) {
         void refetch();
       }
     };
@@ -164,6 +215,8 @@ export function useOrderRealtimeCore<T extends { id: string }>({
         : "admin",
     mergeRow,
     refetch,
+    preserveSsrBaseline,
+    enabled,
   ]);
 
   const dedupeById = useCallback(
@@ -183,10 +236,12 @@ export function useOrderRealtimeCore<T extends { id: string }>({
     (updater: T[] | ((prev: T[]) => T[])) => {
       setRows((prev) => {
         const next = typeof updater === "function" ? updater(prev) : updater;
-        return dedupeById(next);
+        return dedupeById(
+          applyRowsUpdate(prev, next, preserveSsrBaseline, logLabel),
+        );
       });
     },
-    [dedupeById],
+    [dedupeById, preserveSsrBaseline, logLabel],
   );
 
   return {

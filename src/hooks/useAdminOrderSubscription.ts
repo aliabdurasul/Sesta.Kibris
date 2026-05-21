@@ -1,18 +1,22 @@
 /**
- * useAdminOrderSubscription — Realtime for admin monitoring board.
- * Channel: orders:admin
+ * useAdminOrderSubscription — Admin order board state.
+ *
+ * Default: SSR baseline only (enableRealtime=false) — no client refetch on mount.
+ * Optional enableRealtime: patch-only updates via preserveSsrBaseline.
  */
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useOrderRealtimeCore, type ConnectionStatus } from "@/hooks/useOrderRealtimeCore";
 import { ORDER_MERCHANT_ADMIN } from "@/lib/supabase/relation-selects";
-import { assertSupabaseData } from "@/lib/supabase/safe-query";
+import { fetchSupabaseList } from "@/lib/supabase/safe-query";
 import type { DeliveryMode } from "@/types/database";
 
 export type { ConnectionStatus };
+
+const IS_DEV = process.env.NODE_ENV === "development";
 
 export interface AdminLiveOrder {
   id: string;
@@ -33,9 +37,10 @@ export interface AdminLiveOrder {
 interface Options {
   initialOrders: AdminLiveOrder[];
   activeStatuses?: string[];
+  /** Off by default — SSR data stays until row-level realtime patches. */
+  enableRealtime?: boolean;
 }
 
-const DEFAULT_STATUSES = ["READY", "ASSIGNED", "PICKED_UP", "IN_TRANSIT"];
 const ACTIVE = new Set([
   "PENDING",
   "CONFIRMED",
@@ -44,6 +49,53 @@ const ACTIVE = new Set([
   "PICKED_UP",
   "IN_TRANSIT",
 ]);
+
+function mergeAdminOrderRow(
+  prev: AdminLiveOrder[],
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+): AdminLiveOrder[] {
+  const row = payload.new as Record<string, unknown> | undefined;
+  const oldRow = payload.old as Record<string, unknown> | undefined;
+  const id = (row?.id ?? oldRow?.id) as string | undefined;
+  if (!id) return prev;
+
+  if (payload.eventType === "DELETE") {
+    return prev.filter((o) => o.id !== id);
+  }
+
+  if (!row) return prev;
+
+  const status = row.status as string | undefined;
+  if (!status || !ACTIVE.has(status)) {
+    return prev.filter((o) => o.id !== id);
+  }
+
+  const exists = prev.find((o) => o.id === id);
+  if (!exists) {
+    if (IS_DEV) {
+      console.log("[ADMIN REALTIME] unknown row — keeping SSR list", id);
+    }
+    return prev;
+  }
+
+  if (payload.eventType === "UPDATE") {
+    return prev.map((o) =>
+      o.id === id
+        ? {
+            ...o,
+            status,
+            courier_id: (row.courier_id as string | null) ?? o.courier_id,
+            ready_at: (row.ready_at as string | null) ?? o.ready_at,
+            assignment_escalated_at:
+              (row.assignment_escalated_at as string | null) ??
+              o.assignment_escalated_at,
+          }
+        : o,
+    );
+  }
+
+  return prev;
+}
 
 export function useAdminOrderSubscription({
   initialOrders,
@@ -55,61 +107,44 @@ export function useAdminOrderSubscription({
     "PICKED_UP",
     "IN_TRANSIT",
   ],
+  enableRealtime = false,
 }: Options) {
+  const baselineLogged = useRef(false);
+  useEffect(() => {
+    if (IS_DEV && !baselineLogged.current) {
+      baselineLogged.current = true;
+      console.log("[ADMIN SSR ORDERS]", initialOrders.length);
+    }
+  }, [initialOrders.length]);
+
   const supabase = useMemo(() => createBrowserClient(), []);
   const statusesRef = useMemo(() => activeStatuses, [activeStatuses.join(",")]);
 
   const fetchOrders = useCallback(async (): Promise<AdminLiveOrder[]> => {
-    const result = await supabase
-      .from("orders")
-      .select(
-        `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
-         ${ORDER_MERCHANT_ADMIN}`,
-      )
-      .in("status", statusesRef)
-      .order("created_at", { ascending: false });
-    return assertSupabaseData<AdminLiveOrder[]>("ADMIN ORDERS", result);
+    const data = await fetchSupabaseList<AdminLiveOrder[]>(
+      "ADMIN CLIENT FETCH",
+      async () =>
+        await supabase
+          .from("orders")
+          .select(
+            `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
+             ${ORDER_MERCHANT_ADMIN}`,
+          )
+          .in("status", statusesRef)
+          .order("created_at", { ascending: false }),
+    );
+    if (data === null) {
+      throw new Error("ADMIN CLIENT FETCH failed");
+    }
+    return data;
   }, [supabase, statusesRef]);
 
   const mergeRow = useCallback(
     (
       prev: AdminLiveOrder[],
       payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
-    ): AdminLiveOrder[] => {
-      const row = payload.new as Record<string, unknown> | undefined;
-      const oldRow = payload.old as Record<string, unknown> | undefined;
-      const id = (row?.id ?? oldRow?.id) as string | undefined;
-      if (!id) return prev;
-
-      if (payload.eventType === "DELETE") {
-        return prev.filter((o) => o.id !== id);
-      }
-
-      const status = row?.status as string | undefined;
-      if (!status || !ACTIVE.has(status)) {
-        return prev.filter((o) => o.id !== id);
-      }
-
-      if (payload.eventType === "INSERT") {
-        void fetchOrders();
-        return prev;
-      }
-
-      return prev.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              status,
-              courier_id: (row?.courier_id as string | null) ?? o.courier_id,
-              ready_at: (row?.ready_at as string | null) ?? o.ready_at,
-              assignment_escalated_at:
-                (row?.assignment_escalated_at as string | null) ??
-                o.assignment_escalated_at,
-            }
-          : o,
-      );
-    },
-    [fetchOrders],
+    ) => mergeAdminOrderRow(prev, payload),
+    [],
   );
 
   const { rows, setRows, connectionStatus, refetch } = useOrderRealtimeCore({
@@ -117,6 +152,8 @@ export function useAdminOrderSubscription({
     initialRows: initialOrders,
     fetchRows: fetchOrders,
     mergeRow,
+    preserveSsrBaseline: true,
+    enabled: enableRealtime,
   });
 
   return { orders: rows, setOrders: setRows, connectionStatus, refetch };
