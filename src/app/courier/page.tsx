@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 import { getSession } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
+import { ORDER_MERCHANT_COURIER_PANEL } from "@/lib/supabase/relation-selects";
 import { CourierDeliveryQueue } from "@/components/courier/CourierDeliveryQueue";
 
 import type { Database, OrderStatus } from "@/types/database";
@@ -31,7 +32,7 @@ async function getAssignedOrders(courierId: string) {
     .from("orders")
     .select(
       `id, status, total_amount, delivery_address, customer_notes, created_at,
-       merchants!orders_merchant_id_fkey(name, address, phone),
+       ${ORDER_MERCHANT_COURIER_PANEL},
        order_items(id, quantity, product_name, line_total)`,
     )
     .eq("courier_id", courierId)
@@ -45,7 +46,7 @@ async function getAssignedOrders(courierId: string) {
     "status"
   > & {
     status: "ASSIGNED" | "PICKED_UP" | "IN_TRANSIT";
-    merchants: Pick<MerchantRow, "name" | "address" | "phone"> | null;
+    merchant: Pick<MerchantRow, "name" | "address" | "phone"> | null;
     order_items: Pick<OrderItemRow, "id" | "quantity" | "product_name" | "line_total">[];
   })[];
 }

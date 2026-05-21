@@ -8,6 +8,8 @@ import Link from "next/link";
 import type { Database, OrderStatus } from "@/types/database";
 import { AdminOrderAssignment } from "@/components/admin/AdminOrderAssignment";
 import type { AdminLiveOrder } from "@/hooks/useAdminOrderSubscription";
+import { ORDER_MERCHANT_ADMIN } from "@/lib/supabase/relation-selects";
+import { log } from "@/lib/logger";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
@@ -20,7 +22,7 @@ async function getAdminData() {
       .from("orders")
       .select(
         `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
-         merchants!orders_merchant_id_fkey(name, delivery_mode, hybrid_assign_timeout_minutes)`,
+         ${ORDER_MERCHANT_ADMIN}`,
       )
       .in("status", [
         "PENDING",
@@ -40,6 +42,17 @@ async function getAdminData() {
       .is("merchant_id", null),
   ]);
 
+  if (ordersRes.error) {
+    log.error("admin.dashboard.orders", { error: ordersRes.error.message });
+  }
+  if (couriersRes.error) {
+    log.error("admin.dashboard.couriers", { error: couriersRes.error.message });
+  }
+  log.info("admin.dashboard.counts", {
+    orders: ordersRes.data?.length ?? 0,
+    couriers: couriersRes.data?.length ?? 0,
+  });
+
   const orders = (ordersRes.data ?? []) as AdminLiveOrder[];
 
   const couriers = (couriersRes.data ?? []) as Pick<
@@ -47,14 +60,19 @@ async function getAdminData() {
     "id" | "full_name" | "is_available"
   >[];
 
-  return { orders, couriers };
+  return {
+    orders,
+    couriers,
+    ordersError: ordersRes.error?.message ?? null,
+    couriersError: couriersRes.error?.message ?? null,
+  };
 }
 
 export default async function AdminDashboard() {
   // Layout already enforces requireRole("admin") — no second check needed.
   const session = await getSession();
   if (!session) return null;
-  const { orders, couriers } = await getAdminData();
+  const { orders, couriers, ordersError, couriersError } = await getAdminData();
 
   const pending = orders.filter((o) => o.status === "PENDING").length;
   const ready = orders.filter((o) => o.status === "READY").length;
@@ -79,6 +97,19 @@ export default async function AdminDashboard() {
           <p className="text-xs text-blue-600">Müsait Kurye</p>
         </div>
       </div>
+
+      {(ordersError || couriersError) && (
+        <div
+          role="alert"
+          className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200"
+        >
+          Veri yüklenirken hata oluştu.
+          {ordersError && <span className="block">Siparişler: {ordersError}</span>}
+          {couriersError && (
+            <span className="block">Kuryeler: {couriersError}</span>
+          )}
+        </div>
+      )}
 
       <h2 className="mb-3 font-bold text-gray-900">Sipariş İzleme</h2>
 

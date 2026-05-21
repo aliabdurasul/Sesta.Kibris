@@ -100,7 +100,7 @@ export default async function OrderDetailPage({ params }: PageProps) {
 
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
         <h3 className="mb-3 font-semibold text-gray-900">
-          {order.merchants?.name ?? "Unknown Merchant"}
+          {order.merchant?.name ?? "Unknown Merchant"}
         </h3>
         <ul className="space-y-2">
           {(order.order_items ?? [])

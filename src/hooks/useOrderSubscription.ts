@@ -8,6 +8,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useOrderRealtimeCore, type ConnectionStatus } from "@/hooks/useOrderRealtimeCore";
+import { assertSupabaseData } from "@/lib/supabase/safe-query";
 
 export type { ConnectionStatus };
 
@@ -61,7 +62,7 @@ export function useOrderSubscription({
   );
 
   const fetchOrders = useCallback(async (): Promise<LiveOrder[]> => {
-    const { data } = await supabase
+    const result = await supabase
       .from("orders")
       .select(
         "id, status, total_amount, delivery_address, customer_notes, created_at, order_items(id, quantity, unit_price, product_name, line_total)",
@@ -69,7 +70,7 @@ export function useOrderSubscription({
       .eq("merchant_id", merchantId)
       .in("status", activeStatusesRef.current)
       .order("created_at", { ascending: true });
-    return (data ?? []) as LiveOrder[];
+    return assertSupabaseData<LiveOrder[]>("MERCHANT ORDERS", result);
   }, [merchantId, supabase]);
 
   const mergeRow = useCallback(

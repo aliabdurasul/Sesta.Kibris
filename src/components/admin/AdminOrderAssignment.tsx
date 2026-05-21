@@ -133,7 +133,7 @@ export function AdminOrderAssignment({
       )}
 
       {orders.map((order) => {
-        const merchantMeta = order.merchants;
+        const merchantMeta = order.merchant;
         const mode = (merchantMeta?.delivery_mode ??
           "PLATFORM_COURIER") as DeliveryMode;
         const canAssign = adminCanAssign(order, merchantMeta);

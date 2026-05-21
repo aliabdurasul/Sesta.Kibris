@@ -3,6 +3,8 @@
  * Full list of all orders, paginated.
  */
 import { createAdminServerClient } from "@/lib/supabase/admin";
+import { ORDER_MERCHANT_NAME } from "@/lib/supabase/relation-selects";
+import { log } from "@/lib/logger";
 import type { Database, OrderStatus } from "@/types/database";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -21,18 +23,24 @@ const STATUS_LABELS: Record<string, string> = {
 
 async function getAllOrders() {
   const supabase = createAdminServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, merchant_id, created_at, merchants!orders_merchant_id_fkey(name)`,
+      `id, status, total_amount, merchant_id, created_at, ${ORDER_MERCHANT_NAME}`,
     )
     .order("created_at", { ascending: false })
     .limit(100);
 
+  if (error) {
+    log.error("admin.orders.list", { error: error.message });
+  } else {
+    log.info("admin.orders.list", { count: data?.length ?? 0 });
+  }
+
   return (data ?? []) as (Pick<
     OrderRow,
     "id" | "status" | "total_amount" | "merchant_id" | "created_at"
-  > & { merchants: { name: string } | null })[];
+  > & { merchant: { name: string } | null })[];
 }
 
 export default async function AdminOrdersPage() {
@@ -58,7 +66,7 @@ export default async function AdminOrdersPage() {
           >
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {order.merchants?.name ?? "Unknown Merchant"}
+                {order.merchant?.name ?? "Unknown Merchant"}
               </p>
               <p className="text-xs text-gray-400">
                 {new Date(order.created_at).toLocaleString("tr-TR")} ·{" "}

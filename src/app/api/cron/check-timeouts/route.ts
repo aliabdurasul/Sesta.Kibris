@@ -155,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { data: hybridReady } = await admin
       .from("orders")
       .select(
-        "id, ready_at, merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
+        "id, ready_at, merchant:merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
       )
       .eq("status", "READY")
       .is("assignment_escalated_at", null);
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const nowMs = Date.now();
       const ids: string[] = [];
       for (const row of hybridReady) {
-        const m = row.merchants as
+        const m = row.merchant as
           | { delivery_mode: string; hybrid_assign_timeout_minutes: number }
           | { delivery_mode: string; hybrid_assign_timeout_minutes: number }[]
           | null;
@@ -252,7 +252,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { data: hybridReady, error: hybridErr } = await admin
     .from("orders")
     .select(
-      "id, ready_at, assignment_escalated_at, merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
+      "id, ready_at, assignment_escalated_at, merchant:merchants!orders_merchant_id_fkey(delivery_mode, hybrid_assign_timeout_minutes)",
     )
     .eq("status", "READY")
     .is("assignment_escalated_at", null);
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const nowMs = Date.now();
     const toEscalate: string[] = [];
     for (const row of hybridReady) {
-      const m = row.merchants as
+      const m = row.merchant as
         | { delivery_mode: string; hybrid_assign_timeout_minutes: number }
         | { delivery_mode: string; hybrid_assign_timeout_minutes: number }[]
         | null;

@@ -4,6 +4,8 @@
  * Protected by admin role via AdminLayout.
  */
 import { createAdminServerClient } from "@/lib/supabase/admin";
+import { COURIER_MERCHANT_NAME } from "@/lib/supabase/relation-selects";
+import { log } from "@/lib/logger";
 import Link from "next/link";
 import { MerchantAdminToggles } from "@/components/admin/MerchantAdminToggles";
 import type { Database } from "@/types/database";
@@ -23,11 +25,22 @@ async function getActors() {
     supabase
       .from("couriers")
       .select(
-        "id, full_name, phone, vehicle_type, is_active, is_available, merchant_id, created_at, merchants!couriers_merchant_id_fkey(name)",
+        `id, full_name, phone, vehicle_type, is_active, is_available, merchant_id, created_at, ${COURIER_MERCHANT_NAME}`,
       )
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
+
+  if (merchantsRes.error) {
+    log.error("admin.actors.merchants", { error: merchantsRes.error.message });
+  }
+  if (couriersRes.error) {
+    log.error("admin.actors.couriers", { error: couriersRes.error.message });
+  }
+  log.info("admin.actors.counts", {
+    merchants: merchantsRes.data?.length ?? 0,
+    couriers: couriersRes.data?.length ?? 0,
+  });
 
   return {
     merchants: (merchantsRes.data ?? []) as Pick<
@@ -44,7 +57,7 @@ async function getActors() {
       | "is_available"
       | "merchant_id"
       | "created_at"
-    > & { merchants: { name: string } | null })[],
+    > & { merchant: { name: string } | null })[],
     couriersError: couriersRes.error?.message ?? null,
     merchantsError: merchantsRes.error?.message ?? null,
   };
@@ -150,7 +163,7 @@ export default async function ActorsPage({ searchParams }: PageProps) {
                     {c.full_name ?? "—"}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {c.merchants?.name ?? "İşletme yok"} · {c.phone ?? "Telefon yok"}{" "}
+                    {c.merchant?.name ?? "Platform kurye"} · {c.phone ?? "Telefon yok"}{" "}
                     · {c.vehicle_type ?? "—"}
                   </p>
                 </div>

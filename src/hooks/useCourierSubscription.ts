@@ -11,6 +11,8 @@ import {
   useOrderRealtimeCore,
   type ConnectionStatus,
 } from "@/hooks/useOrderRealtimeCore";
+import { ORDER_MERCHANT_COURIER_PANEL } from "@/lib/supabase/relation-selects";
+import { assertSupabaseData } from "@/lib/supabase/safe-query";
 
 export type { ConnectionStatus };
 
@@ -25,7 +27,7 @@ export interface LiveDelivery {
   delivery_address: unknown;
   customer_notes: string | null;
   created_at: string;
-  merchants: {
+  merchant: {
     name: string;
     address: string | null;
     phone: string | null;
@@ -38,8 +40,7 @@ export interface LiveDelivery {
   }[];
 }
 
-const SELECT =
-  "id, status, total_amount, delivery_address, customer_notes, created_at, merchants!orders_merchant_id_fkey(name, address, phone), order_items(id, quantity, product_name, line_total)";
+const SELECT = `id, status, total_amount, delivery_address, customer_notes, created_at, ${ORDER_MERCHANT_COURIER_PANEL}, order_items(id, quantity, product_name, line_total)`;
 
 interface UseCourierSubscriptionOptions {
   courierId: string;
@@ -53,13 +54,13 @@ export function useCourierSubscription({
   const supabase = useMemo(() => createBrowserClient(), []);
 
   const fetchOrders = useCallback(async (): Promise<LiveDelivery[]> => {
-    const { data } = await supabase
+    const result = await supabase
       .from("orders")
       .select(SELECT)
       .eq("courier_id", courierId)
       .in("status", [...ACTIVE_STATUSES])
       .order("assigned_at", { ascending: true, nullsFirst: false });
-    return (data ?? []) as LiveDelivery[];
+    return assertSupabaseData<LiveDelivery[]>("COURIER ORDERS", result);
   }, [courierId, supabase]);
 
   const mergeRow = useCallback(

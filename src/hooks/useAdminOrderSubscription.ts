@@ -8,6 +8,8 @@ import { useCallback, useMemo } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useOrderRealtimeCore, type ConnectionStatus } from "@/hooks/useOrderRealtimeCore";
+import { ORDER_MERCHANT_ADMIN } from "@/lib/supabase/relation-selects";
+import { assertSupabaseData } from "@/lib/supabase/safe-query";
 import type { DeliveryMode } from "@/types/database";
 
 export type { ConnectionStatus };
@@ -21,7 +23,7 @@ export interface AdminLiveOrder {
   created_at: string;
   ready_at: string | null;
   assignment_escalated_at?: string | null;
-  merchants: {
+  merchant: {
     name: string;
     delivery_mode: DeliveryMode;
     hybrid_assign_timeout_minutes: number;
@@ -58,15 +60,15 @@ export function useAdminOrderSubscription({
   const statusesRef = useMemo(() => activeStatuses, [activeStatuses.join(",")]);
 
   const fetchOrders = useCallback(async (): Promise<AdminLiveOrder[]> => {
-    const { data } = await supabase
+    const result = await supabase
       .from("orders")
       .select(
         `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
-         merchants!orders_merchant_id_fkey(name, delivery_mode, hybrid_assign_timeout_minutes)`,
+         ${ORDER_MERCHANT_ADMIN}`,
       )
       .in("status", statusesRef)
       .order("created_at", { ascending: false });
-    return (data ?? []) as AdminLiveOrder[];
+    return assertSupabaseData<AdminLiveOrder[]>("ADMIN ORDERS", result);
   }, [supabase, statusesRef]);
 
   const mergeRow = useCallback(

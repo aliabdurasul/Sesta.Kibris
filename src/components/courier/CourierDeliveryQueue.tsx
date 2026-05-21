@@ -29,7 +29,7 @@ interface Order {
   delivery_address: Json;
   customer_notes: string | null;
   created_at: string;
-  merchants: OrderMerchant | null;
+  merchant: OrderMerchant | null;
   order_items: OrderItemData[];
 }
 
@@ -159,7 +159,7 @@ export function CourierDeliveryQueue({
       {orders.map((order) => {
         const isLoading = loadingId === order.id;
         const addr = order.delivery_address as Record<string, string>;
-        const merchant = order.merchants;
+        const merchant = order.merchant;
 
         return (
           <div

@@ -7,6 +7,7 @@ export const revalidate = 0;
 import { unstable_noStore as noStore } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
+import { ORDER_MERCHANT_NAME } from "@/lib/supabase/relation-selects";
 import Link from "next/link";
 import type { Database, OrderStatus } from "@/types/database";
 
@@ -45,7 +46,7 @@ async function getCustomerOrders(userId: string) {
     .select(
       `
       id, status, total_amount, created_at,
-      merchants!orders_merchant_id_fkey(name)
+      ${ORDER_MERCHANT_NAME}
     `,
     )
     .eq("customer_id", userId)
@@ -53,7 +54,7 @@ async function getCustomerOrders(userId: string) {
     .limit(20);
 
   return (data ?? []) as (Pick<OrderRow, "id" | "status" | "total_amount" | "created_at"> & {
-    merchants: { name: string } | null;
+    merchant: { name: string } | null;
   })[];
 }
 
@@ -85,7 +86,7 @@ export default async function CustomerOrdersPage() {
             >
               <div>
                 <p className="font-semibold text-gray-900">
-                  {order.merchants?.name ?? "Market"}
+                  {order.merchant?.name ?? "Market"}
                 </p>
                 <p className="text-xs text-gray-400">
                   {new Date(order.created_at).toLocaleString("tr-TR", {

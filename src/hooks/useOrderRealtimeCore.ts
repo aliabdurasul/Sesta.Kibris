@@ -68,12 +68,26 @@ export function useOrderRealtimeCore<T extends { id: string }>({
   fetchRef.current = fetchRows;
 
   const refetch = useCallback(async () => {
-    const data = await fetchRef.current();
-    setRows(data);
+    try {
+      const data = await fetchRef.current();
+      setRows(data);
+    } catch (err) {
+      if (process.env.NODE_ENV === "development") {
+        console.error(
+          "[realtime] refetch failed — keeping previous rows",
+          err,
+        );
+      }
+    }
   }, []);
 
+  const initialKeyRef = useRef(initialRows.map((r) => r.id).join(","));
   useEffect(() => {
-    setRows(initialRows);
+    const key = initialRows.map((r) => r.id).join(",");
+    if (key !== initialKeyRef.current) {
+      initialKeyRef.current = key;
+      setRows(initialRows);
+    }
   }, [initialRows]);
 
   useEffect(() => {

@@ -4,6 +4,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
 import { log } from "@/lib/logger";
+import { ORDER_MERCHANT_NAME_PHONE } from "@/lib/supabase/relation-selects";
 import type { Database } from "@/types/database";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -13,7 +14,7 @@ export type CustomerOrderDetail = Pick<
   OrderRow,
   "id" | "status" | "total_amount" | "delivery_address" | "customer_notes" | "created_at"
 > & {
-  merchants: { name: string; phone: string | null } | null;
+  merchant: { name: string; phone: string | null } | null;
   order_items: Pick<
     OrderItemRow,
     "id" | "quantity" | "unit_price" | "product_name" | "line_total"
@@ -45,7 +46,7 @@ export async function fetchCustomerOrderById(
     .select(
       `
       id, status, total_amount, delivery_address, customer_notes, created_at,
-      merchants!orders_merchant_id_fkey(name, phone),
+      ${ORDER_MERCHANT_NAME_PHONE},
       order_items(id, quantity, unit_price, product_name, line_total),
       order_status_log(id, to_status, from_status, note, created_at, actor_role)
     `,
