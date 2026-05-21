@@ -1,50 +1,60 @@
 import { Suspense } from "react";
-import { HeroSection } from "@/components/landing/HeroSection";
-import { TrustBanner } from "@/components/landing/TrustBanner";
-import { CategoryGrid } from "@/components/landing/CategoryGrid";
+import type { SessionUser } from "@/lib/auth";
+import { HomeHeader } from "@/components/landing/HomeHeader";
+import { HomeLocationSearch } from "@/components/landing/HomeLocationSearch";
+import { QuickInfoCards } from "@/components/landing/QuickInfoCards";
 import {
-  FeaturedAdsCarousel,
-  type FeaturedSlide,
-} from "@/components/landing/FeaturedAdsCarousel";
+  PromoHeroSlider,
+  buildPromoSlidesFromMerchants,
+} from "@/components/landing/PromoHeroSlider";
+import { CategoryScroll } from "@/components/landing/CategoryScroll";
 import { MarketBrowseSection } from "@/components/landing/MarketBrowseSection";
+import { TrustBenefits } from "@/components/landing/TrustBenefits";
+import { HomeBottomNav } from "@/components/landing/HomeBottomNav";
 import type { MarketCardMerchant } from "@/components/landing/MarketCard";
 
 interface LandingPageProps {
   merchants: MarketCardMerchant[];
   error: string | null;
+  session: SessionUser | null;
 }
 
-function buildFeaturedSlides(merchants: MarketCardMerchant[]): FeaturedSlide[] {
-  return merchants.slice(0, 3).map((m, i) => ({
-    id: m.id,
-    title: m.name,
-    description:
-      m.is_open === false
-        ? "Şu an kapalı — çalışma saatlerinde ziyaret edin."
-        : "Hızlı teslimat ve güvenli sipariş.",
-    badge: i === 0 ? "Sponsorlu" : "Öne Çıkan",
-    href: `/merchants/${m.slug}`,
-  }));
-}
-
-export function LandingPage({ merchants, error }: LandingPageProps) {
-  const featuredSlides = buildFeaturedSlides(merchants);
+export function LandingPage({ merchants, error, session }: LandingPageProps) {
+  const promoSlides = buildPromoSlidesFromMerchants(merchants);
+  const promoBanner =
+    merchants.length > 0
+      ? `${merchants[0]!.name} — bugün sipariş ver, kapına gelsin`
+      : null;
 
   return (
-    <div className="space-y-10 pb-4">
-      <HeroSection />
-      <FeaturedAdsCarousel slides={featuredSlides} />
-      <CategoryGrid />
-      <Suspense
-        fallback={
-          <div className="py-12 text-center text-sm text-gray-400">
-            Marketler yükleniyor…
-          </div>
-        }
-      >
-        <MarketBrowseSection merchants={merchants} error={error} />
-      </Suspense>
-      <TrustBanner />
+    <div className="home-screen min-h-screen bg-app-bg">
+      <HomeHeader session={session} promoText={promoBanner} />
+
+      <div className="mx-auto max-w-lg space-y-5 pb-4 pt-2 animate-fade-in">
+        <HomeLocationSearch />
+        <QuickInfoCards />
+        <PromoHeroSlider slides={promoSlides} />
+
+        <div id="categories">
+          <Suspense fallback={null}>
+            <CategoryScroll />
+          </Suspense>
+        </div>
+
+        <Suspense
+          fallback={
+            <div className="px-4 py-8 text-center text-sm text-text-muted">
+              Marketler yükleniyor…
+            </div>
+          }
+        >
+          <MarketBrowseSection merchants={merchants} error={error} />
+        </Suspense>
+
+        <TrustBenefits />
+      </div>
+
+      <HomeBottomNav />
     </div>
   );
 }

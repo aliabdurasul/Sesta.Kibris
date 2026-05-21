@@ -2,11 +2,9 @@
 
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { MARKET_CATEGORIES } from "@/components/landing/CategoryGrid";
-import {
-  MarketCard,
-  type MarketCardMerchant,
-} from "@/components/landing/MarketCard";
+import { getCategoryLabel } from "@/lib/landing/categories";
+import { NearbyStoreCard } from "@/components/landing/NearbyStoreCard";
+import type { MarketCardMerchant } from "@/components/landing/MarketCard";
 
 interface MarketBrowseSectionProps {
   merchants: MarketCardMerchant[];
@@ -25,62 +23,43 @@ export function MarketBrowseSection({
     return merchants.filter((m) => m.category === categoryFilter);
   }, [merchants, categoryFilter]);
 
-  const categoryLabel = categoryFilter
-    ? MARKET_CATEGORIES.find((c) => c.filter === categoryFilter)?.label
-    : null;
+  const categoryLabel = getCategoryLabel(categoryFilter);
 
   return (
-    <section id="browse-markets" className="scroll-mt-24 space-y-4">
+    <section id="browse-markets" className="scroll-mt-4 space-y-3 px-4">
       <div className="flex items-end justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">
-            {categoryLabel ? categoryLabel : "Tüm Marketler"}
+          <h2 className="text-base font-bold text-text-primary">
+            {categoryLabel ? `Yakınındaki — ${categoryLabel}` : "Yakınındaki marketler"}
           </h2>
-          <p className="text-sm text-gray-500">
-            {filtered.length} market listeleniyor
-          </p>
+          <p className="text-xs text-text-muted">{filtered.length} işletme</p>
         </div>
         {categoryFilter && (
-          <a
-            href="/#browse-markets"
-            className="text-sm font-medium text-sesta-blue hover:underline"
-          >
-            Filtreyi temizle
+          <a href="/#browse-markets" className="text-xs font-bold text-brand-orange">
+            Tümü
           </a>
         )}
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
-          Marketler şu an yüklenemiyor. Lütfen daha sonra tekrar deneyin.
+        <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
+          Marketler yüklenemiyor. Lütfen tekrar deneyin.
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl bg-white p-8 text-center text-gray-500 shadow-sm ring-1 ring-gray-100">
-          <p className="text-lg font-medium text-gray-700">
-            {categoryFilter
-              ? "Bu kategori için henüz market yok."
-              : "Henüz aktif market bulunmuyor."}
+        <div className="rounded-[1.5rem] bg-brand-white p-8 text-center shadow-sm ring-1 ring-black/5">
+          <p className="font-semibold text-text-primary">
+            {categoryFilter ? "Bu kategoride işletme yok" : "Yakında marketler burada"}
           </p>
-          <p className="mt-1 text-sm">
-            {categoryFilter
-              ? "Başka bir kategori deneyin veya tüm marketlere göz atın."
-              : "Marketler yönetici tarafından aktifleştirildikten sonra burada görünür."}
+          <p className="mt-1 text-sm text-text-muted">
+            Farklı bir kategori seç veya daha sonra tekrar dene.
           </p>
-          {categoryFilter && (
-            <a
-              href="/#browse-markets"
-              className="mt-4 inline-block text-sm font-medium text-sesta-blue underline-offset-4 hover:underline"
-            >
-              Tüm marketleri göster
-            </a>
-          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((merchant) => (
-            <MarketCard key={merchant.id} merchant={merchant} />
+          {filtered.map((m) => (
+            <NearbyStoreCard key={m.id} merchant={m} />
           ))}
         </div>
       )}

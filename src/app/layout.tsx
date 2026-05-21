@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
 
-const TAGLINE = "Kıbrıs'ın Sepeti";
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const TAGLINE = "Kıbrıs'ın günlük yaşam uygulaması";
 
 export const metadata: Metadata = {
   title: `SestaKıbrıs — ${TAGLINE}`,
   description:
-    "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş ve hızlı teslimat.",
+    "Market, su, tüp ve yerel dükkan siparişi — hızlı teslimat, güvenli ödeme.",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -36,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0E2B51",
+  themeColor: "#0B2A6F",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -49,7 +56,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" suppressHydrationWarning>
-      <body className="antialiased" suppressHydrationWarning>
+      <body
+        className={`${inter.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
         {children}
         <ServiceWorkerRegistration />
       </body>

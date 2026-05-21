@@ -1,22 +1,21 @@
 "use client";
 
-/**
- * Cart summary bar — sticky bottom of storefront pages.
- * Waits for client mount so Zustand/sessionStorage does not mismatch SSR HTML.
- */
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 
-export function CartBar() {
+export function CartBar({ hideOnHome = false }: { hideOnHome?: boolean }) {
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  const { items, getTotal, getItemCount } = useCartStore();
+  const { getTotal, getItemCount } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
+  if (hideOnHome && pathname === "/") return null;
 
   const count = getItemCount();
   if (count === 0) return null;
@@ -25,12 +24,12 @@ export function CartBar() {
   const totalDisplay = `${(total / 100).toFixed(2)} ₺`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-20">
       <Link
         href="/checkout"
-        className="flex items-center justify-between rounded-2xl bg-blue-600 px-5 py-4 text-white shadow-lg"
+        className="mx-auto flex max-w-lg items-center justify-between rounded-2xl bg-brand-navy px-5 py-4 text-white shadow-lg shadow-brand-navy/25"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-sm font-bold">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-sm font-bold">
           {count}
         </span>
         <span className="font-semibold">Sepeti Görüntüle</span>

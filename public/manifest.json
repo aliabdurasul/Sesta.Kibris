@@ -1,11 +1,11 @@
 {
   "name": "SestaKıbrıs",
   "short_name": "Sesta",
-  "description": "Kıbrıs'ın Sepeti — yerel marketlerden çevrimiçi sipariş",
+  "description": "Kıbrıs'ın günlük yaşam uygulaması",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#0E2B51",
+  "background_color": "#F6F7FB",
+  "theme_color": "#0B2A6F",
   "orientation": "portrait",
   "icons": [
     {

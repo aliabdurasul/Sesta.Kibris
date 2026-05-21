@@ -1,9 +1,57 @@
 @import "tailwindcss";
 
 @theme {
-  --color-sesta-navy: #0e2b51;
-  --color-sesta-orange: #e68228;
-  --color-sesta-blue: #288cd2;
-  --color-sesta-bg-light: #f8fafc;
-  --color-sesta-bg-dark: #091e3a;
+  --color-brand-orange: #ff7a00;
+  --color-brand-navy: #0b2a6f;
+  --color-brand-white: #ffffff;
+  --color-brand-sky: #4da6ff;
+  --color-app-bg: #f6f7fb;
+  --color-text-primary: #111827;
+  --color-text-secondary: #374151;
+  --color-text-muted: #6b7280;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.5rem;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-progress {
+  0% {
+    width: 28%;
+  }
+  100% {
+    width: 65%;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.45s ease-out both;
+}
+
+.animate-slide-progress {
+  animation: slide-progress 3s ease-in-out infinite alternate;
+}
+
+/* Home: full-bleed landing */
+main > .home-screen {
+  padding-bottom: 6.5rem;
+}
+
+/* Other storefront pages */
+main > :not(.home-screen) {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 28rem;
+  padding: 1rem 1rem 7rem;
 }
