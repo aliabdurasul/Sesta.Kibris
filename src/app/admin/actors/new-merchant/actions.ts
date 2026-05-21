@@ -94,6 +94,7 @@ export async function createMerchantAction(
       phone,
       is_active: true,
       is_open: true,
+      delivery_mode: "MERCHANT_DELIVERY",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")

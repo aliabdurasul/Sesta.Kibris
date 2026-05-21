@@ -1,10 +1,12 @@
 /**
  * Edge Function: POST /functions/v1/transition-order
  *
- * Enforces the Order State Machine.
- * ASSIGNED: admin only (+ courier_id, assigned_at)
- * PICKED_UP: courier only (ASSIGNED → PICKED_UP)
- * IN_TRANSIT: courier only (PICKED_UP → IN_TRANSIT, sets picked_up_at)
+ * Delivery modes control READY → ASSIGNED:
+ *   MERCHANT_DELIVERY — merchant assigns / auto default courier; admin cannot assign
+ *   PLATFORM_COURIER  — admin assigns platform courier only
+ *   HYBRID            — merchant first; admin after ready_at + timeout
+ *
+ * Courier flow: ASSIGNED → PICKED_UP → IN_TRANSIT → DELIVERED
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -27,7 +29,6 @@ type OrderStatus =
   | "CANCELLED";
 
 type ActorRole = "customer" | "merchant" | "courier" | "admin";
-
 type DeliveryMode = "MERCHANT_DELIVERY" | "PLATFORM_COURIER" | "HYBRID";
 
 const VALID_TRANSITIONS: Record<
@@ -43,14 +44,9 @@ const VALID_TRANSITIONS: Record<
     { to: "READY", allowedRoles: ["merchant", "admin"] },
     { to: "CANCELLED", allowedRoles: ["admin"] },
   ],
-  READY: [{ to: "ASSIGNED", allowedRoles: ["admin"] }],
-  ASSIGNED: [
-    { to: "PICKED_UP", allowedRoles: ["courier"] },
-    { to: "IN_TRANSIT", allowedRoles: ["admin"] },
-  ],
-  PICKED_UP: [
-    { to: "IN_TRANSIT", allowedRoles: ["courier", "admin"] },
-  ],
+  READY: [{ to: "ASSIGNED", allowedRoles: ["merchant", "admin"] }],
+  ASSIGNED: [{ to: "PICKED_UP", allowedRoles: ["courier"] }],
+  PICKED_UP: [{ to: "IN_TRANSIT", allowedRoles: ["courier", "admin"] }],
   IN_TRANSIT: [
     { to: "DELIVERED", allowedRoles: ["courier", "admin"] },
     { to: "FAILED_DELIVERY", allowedRoles: ["courier", "admin"] },
@@ -62,6 +58,12 @@ interface RequestBody {
   new_status: OrderStatus;
   courier_id?: string | null;
   note?: string | null;
+}
+
+interface MerchantRow {
+  delivery_mode: DeliveryMode;
+  default_courier_id: string | null;
+  hybrid_assign_timeout_minutes: number;
 }
 
 Deno.serve(async (req: Request) => {
@@ -127,7 +129,9 @@ Deno.serve(async (req: Request) => {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, status, merchant_id, customer_id, courier_id, picked_up_at")
+      .select(
+        "id, status, merchant_id, customer_id, courier_id, picked_up_at, ready_at, assignment_escalated_at",
+      )
       .eq("id", order_id)
       .single();
 
@@ -191,63 +195,140 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const { data: merchantRow } = await admin
+      .from("merchants")
+      .select(
+        "delivery_mode, default_courier_id, hybrid_assign_timeout_minutes",
+      )
+      .eq("id", order.merchant_id)
+      .single();
+
+    const merchant = (merchantRow ?? {
+      delivery_mode: "PLATFORM_COURIER",
+      default_courier_id: null,
+      hybrid_assign_timeout_minutes: 15,
+    }) as MerchantRow;
+
+    const mode = merchant.delivery_mode ?? "PLATFORM_COURIER";
+    const now = new Date().toISOString();
+    let resolvedCourierId = courier_id?.trim() || null;
+
     if (new_status === "ASSIGNED") {
-      if (actorRole !== "admin") {
-        return json(
-          {
-            error: "Kurye ataması yalnızca yönetici tarafından yapılabilir.",
-            code: "ASSIGNMENT_FORBIDDEN",
-          },
-          403,
-        );
+      const hybridDeadlineMs = order.ready_at
+        ? new Date(order.ready_at).getTime() +
+          (merchant.hybrid_assign_timeout_minutes ?? 15) * 60 * 1000
+        : 0;
+      const hybridEscalated =
+        !!order.assignment_escalated_at || Date.now() >= hybridDeadlineMs;
+
+      if (actorRole === "admin") {
+        if (mode === "MERCHANT_DELIVERY") {
+          return json(
+            {
+              error: "Bu işletme kendi kuryesini atar; yönetici ataması yapılamaz.",
+              code: "DELIVERY_MODE_MERCHANT_ONLY",
+            },
+            403,
+          );
+        }
+        if (mode === "HYBRID" && !hybridEscalated) {
+          return json(
+            {
+              error:
+                "Hibrit mod: işletme süresi dolmadan platform ataması yapılamaz.",
+              code: "HYBRID_MERCHANT_WINDOW",
+            },
+            403,
+          );
+        }
       }
-      if (!courier_id) {
+
+      if (actorRole === "merchant") {
+        if (mode === "PLATFORM_COURIER") {
+          return json(
+            {
+              error: "Platform kuryesi yönetici tarafından atanır.",
+              code: "DELIVERY_MODE_PLATFORM_ONLY",
+            },
+            403,
+          );
+        }
+      }
+
+      if (
+        actorRole === "merchant" &&
+        (mode === "MERCHANT_DELIVERY" || mode === "HYBRID")
+      ) {
+        if (!resolvedCourierId) {
+          resolvedCourierId = merchant.default_courier_id;
+        }
+        if (!resolvedCourierId) {
+          const { data: fallback } = await admin
+            .from("couriers")
+            .select("id")
+            .eq("merchant_id", order.merchant_id)
+            .eq("is_active", true)
+            .order("is_available", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          resolvedCourierId = fallback?.id ?? null;
+        }
+      }
+
+      if (actorRole === "admin" && !resolvedCourierId) {
         return json({ error: "Kurye ataması için courier_id zorunludur." }, 400);
       }
 
-      const { data: merchant } = await admin
-        .from("merchants")
-        .select("delivery_mode")
-        .eq("id", order.merchant_id)
-        .single();
-
-      const mode = (merchant?.delivery_mode ?? "PLATFORM_COURIER") as DeliveryMode;
-      if (mode === "MERCHANT_DELIVERY") {
+      if (!resolvedCourierId) {
         return json(
           {
-            error: "Bu işletme kendi kuryesini kullanıyor; platform ataması yapılamaz.",
-            code: "DELIVERY_MODE_MERCHANT_ONLY",
+            error:
+              "Müsait kurye yok; sipariş READY durumunda kaldı.",
+            code: "NO_COURIER_AVAILABLE",
           },
-          403,
+          400,
         );
       }
 
       const { data: courierRow } = await admin
         .from("couriers")
         .select("id, is_active, merchant_id")
-        .eq("id", courier_id)
+        .eq("id", resolvedCourierId)
         .maybeSingle();
 
       if (!courierRow?.is_active) {
         return json({ error: "Kurye bulunamadı veya aktif değil." }, 400);
       }
 
-      if (mode === "PLATFORM_COURIER" && courierRow.merchant_id != null) {
-        return json(
-          {
-            error: "Platform kuryesi gerekli; işletme kuryesi atanamaz.",
-            code: "DELIVERY_MODE_PLATFORM_ONLY",
-          },
-          403,
-        );
+      if (actorRole === "merchant") {
+        if (courierRow.merchant_id !== order.merchant_id) {
+          return json(
+            { error: "Yalnızca işletmenize bağlı kurye atanabilir." },
+            403,
+          );
+        }
+      }
+
+      if (actorRole === "admin") {
+        if (mode === "PLATFORM_COURIER" && courierRow.merchant_id != null) {
+          return json(
+            {
+              error: "Platform kuryesi gerekli; işletme kuryesi seçilemez.",
+              code: "DELIVERY_MODE_PLATFORM_ONLY",
+            },
+            403,
+          );
+        }
       }
     }
 
-    const now = new Date().toISOString();
     const orderUpdate: Record<string, unknown> = { status: new_status };
 
-    if (new_status === "ASSIGNED" && courier_id) {
-      orderUpdate.courier_id = courier_id;
+    if (new_status === "READY") {
+      orderUpdate.ready_at = order.ready_at ?? now;
+    }
+    if (new_status === "ASSIGNED" && resolvedCourierId) {
+      orderUpdate.courier_id = resolvedCourierId;
       orderUpdate.assigned_at = now;
     }
     if (new_status === "PICKED_UP") {
@@ -276,7 +357,12 @@ Deno.serve(async (req: Request) => {
       note: note ?? null,
     });
 
-    return json({ success: true, order_id, new_status });
+    return json({
+      success: true,
+      order_id,
+      new_status,
+      courier_id: resolvedCourierId ?? order.courier_id,
+    });
   } catch (err) {
     console.error("transition-order unhandled error:", err);
     return json({ error: "Beklenmedik bir hata oluştu." }, 500);

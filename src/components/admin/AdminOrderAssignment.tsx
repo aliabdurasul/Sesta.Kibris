@@ -1,12 +1,7 @@
 "use client";
 
 /**
- * Admin courier assignment component.
- * Assigns available courier to READY orders via the transition-order-status Edge Function.
- * Also shows all active orders with status.
- *
- * IMPORTANT: Assignment MUST go through the Edge Function — never direct DB writes.
- * This ensures order_status_log is appended and the state machine is enforced.
+ * Admin order monitoring — platform courier assignment only when delivery_mode allows.
  */
 import { useState } from "react";
 import { getBrowserAccessToken } from "@/lib/supabase/access-token";
@@ -14,7 +9,12 @@ import {
   useAdminOrderSubscription,
   type AdminLiveOrder,
 } from "@/hooks/useAdminOrderSubscription";
-import type { OrderStatus } from "@/types/database";
+import {
+  adminAssignBlockedReason,
+  adminCanAssign,
+  deliveryModeLabel,
+} from "@/lib/delivery/assignment";
+import type { DeliveryMode, OrderStatus } from "@/types/database";
 
 interface Courier {
   id: string;
@@ -23,7 +23,7 @@ interface Courier {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: "Bekliyor",
+  PENDING: "Oluşturuldu",
   CONFIRMED: "Onaylandı",
   READY: "Hazır",
   ASSIGNED: "Kurye Atandı",
@@ -73,10 +73,10 @@ async function assignCourierViaEdgeFunction(
 
 export function AdminOrderAssignment({
   orders: initialOrders,
-  couriers,
+  platformCouriers,
 }: {
   orders: AdminLiveOrder[];
-  couriers: Courier[];
+  platformCouriers: Courier[];
 }) {
   const { orders, setOrders } = useAdminOrderSubscription({
     initialOrders,
@@ -120,6 +120,9 @@ export function AdminOrderAssignment({
 
   return (
     <div className="space-y-3">
+      <p className="text-xs text-gray-500">
+        İzleme modu — kurye ataması yalnızca platform / hibrit (süre sonrası) siparişlerde.
+      </p>
       {error && (
         <div
           role="alert"
@@ -129,66 +132,81 @@ export function AdminOrderAssignment({
         </div>
       )}
 
-      {orders.map((order) => (
-        <div
-          key={order.id}
-          className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">
-                {order.merchants?.name ?? "Unknown Merchant"}
-              </p>
-              <p className="text-xs text-gray-400">
-                #{order.id.slice(-8).toUpperCase()} ·{" "}
-                {(order.total_amount / 100).toFixed(2)} ₺
-              </p>
-            </div>
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}
-            >
-              {STATUS_LABELS[order.status] ?? order.status}
-            </span>
-          </div>
+      {orders.map((order) => {
+        const merchantMeta = order.merchants;
+        const mode = (merchantMeta?.delivery_mode ??
+          "PLATFORM_COURIER") as DeliveryMode;
+        const canAssign = adminCanAssign(order, merchantMeta);
+        const blocked = adminAssignBlockedReason(order, merchantMeta);
 
-          {order.status === "READY" && couriers.length > 0 && (
-            <div className="mt-3 flex gap-2">
-              <select
-                id={`courier-${order.id}`}
-                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                defaultValue=""
+        return (
+          <div
+            key={order.id}
+            className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {merchantMeta?.name ?? "Unknown Merchant"}
+                </p>
+                <p className="text-xs text-gray-400">
+                  #{order.id.slice(-8).toUpperCase()} ·{" "}
+                  {(order.total_amount / 100).toFixed(2)} ₺ ·{" "}
+                  {deliveryModeLabel(mode)}
+                </p>
+              </div>
+              <span
+                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-600"}`}
               >
-                <option value="" disabled>
-                  Kurye seç...
-                </option>
-                {couriers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name ?? "Kurye"}
+                {STATUS_LABELS[order.status] ?? order.status}
+              </span>
+            </div>
+
+            {order.status === "READY" && canAssign && platformCouriers.length > 0 && (
+              <div className="mt-3 flex gap-2">
+                <select
+                  id={`courier-${order.id}`}
+                  className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Platform kuryesi...
                   </option>
-                ))}
-              </select>
-              <button
-                onClick={() => {
-                  const sel = document.getElementById(
-                    `courier-${order.id}`,
-                  ) as HTMLSelectElement;
-                  if (sel.value) void assignCourier(order.id, sel.value);
-                }}
-                disabled={loadingId === order.id}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {loadingId === order.id ? "..." : "Ata"}
-              </button>
-            </div>
-          )}
+                  {platformCouriers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name ?? "Kurye"}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    const sel = document.getElementById(
+                      `courier-${order.id}`,
+                    ) as HTMLSelectElement;
+                    if (sel.value) void assignCourier(order.id, sel.value);
+                  }}
+                  disabled={loadingId === order.id}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {loadingId === order.id ? "..." : "Ata"}
+                </button>
+              </div>
+            )}
 
-          {order.status === "READY" && couriers.length === 0 && (
-            <p className="mt-2 text-xs text-orange-500">
-              Müsait kurye yok
-            </p>
-          )}
-        </div>
-      ))}
+            {order.status === "READY" && blocked && (
+              <p className="mt-2 text-xs text-gray-500">{blocked}</p>
+            )}
+
+            {order.status === "READY" &&
+              canAssign &&
+              platformCouriers.length === 0 && (
+                <p className="mt-2 text-xs text-orange-500">
+                  Müsait platform kuryesi yok
+                </p>
+              )}
+          </div>
+        );
+      })}
     </div>
   );
 }

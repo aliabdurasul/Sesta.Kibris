@@ -34,6 +34,8 @@ type MerchantDetail = Pick<
   | "phone"
   | "is_active"
   | "is_open"
+  | "delivery_mode"
+  | "default_courier_id"
 >;
 
 type ProductItem = Pick<
@@ -84,7 +86,7 @@ async function getMerchantBySlug(
   let query = supabase
     .from("merchants")
     .select(
-      "id, name, slug, user_id, owner_user_id, category, address, phone, is_active, is_open",
+      "id, name, slug, user_id, owner_user_id, category, address, phone, is_active, is_open, delivery_mode, default_courier_id",
     )
     .eq("slug", slug);
 
@@ -160,6 +162,19 @@ export default async function MerchantDetailPage({ params }: PageProps) {
 
   if (isOwner) {
     const orders = await getActiveOrders(merchantForOwner.id);
+    const supabase = await createServerClient();
+    const { data: courierRows } = await supabase
+      .from("couriers")
+      .select("id, full_name, is_available")
+      .eq("merchant_id", merchantForOwner.id)
+      .eq("is_active", true)
+      .order("full_name");
+
+    const merchantCouriers = (courierRows ?? []) as {
+      id: string;
+      full_name: string | null;
+      is_available: boolean;
+    }[];
 
     return (
       <div>
@@ -190,6 +205,14 @@ export default async function MerchantDetailPage({ params }: PageProps) {
         <MerchantOrderQueue
           initialOrders={orders}
           merchantId={merchantForOwner.id}
+          deliveryMode={
+            (merchantForOwner.delivery_mode ?? "PLATFORM_COURIER") as
+              | "MERCHANT_DELIVERY"
+              | "PLATFORM_COURIER"
+              | "HYBRID"
+          }
+          merchantCouriers={merchantCouriers}
+          defaultCourierId={merchantForOwner.default_courier_id ?? null}
         />
       </div>
     );

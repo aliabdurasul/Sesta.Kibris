@@ -7,6 +7,7 @@ import { createAdminServerClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import type { Database, OrderStatus } from "@/types/database";
 import { AdminOrderAssignment } from "@/components/admin/AdminOrderAssignment";
+import type { AdminLiveOrder } from "@/hooks/useAdminOrderSubscription";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 type CourierRow = Database["public"]["Tables"]["couriers"]["Row"];
@@ -18,7 +19,8 @@ async function getAdminData() {
     supabase
       .from("orders")
       .select(
-        `id, status, total_amount, merchant_id, courier_id, created_at, merchants!left(name)`,
+        `id, status, total_amount, merchant_id, courier_id, created_at, ready_at, assignment_escalated_at,
+         merchants!left(name, delivery_mode, hybrid_assign_timeout_minutes)`,
       )
       .in("status", [
         "PENDING",
@@ -34,13 +36,11 @@ async function getAdminData() {
       .from("couriers")
       .select("id, full_name, is_available")
       .eq("is_active", true)
-      .eq("is_available", true),
+      .eq("is_available", true)
+      .is("merchant_id", null),
   ]);
 
-  const orders = (ordersRes.data ?? []) as (Pick<
-    OrderRow,
-    "id" | "status" | "total_amount" | "merchant_id" | "courier_id" | "created_at"
-  > & { merchants: { name: string } | null })[];
+  const orders = (ordersRes.data ?? []) as AdminLiveOrder[];
 
   const couriers = (couriersRes.data ?? []) as Pick<
     CourierRow,
@@ -80,9 +80,9 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <h2 className="mb-3 font-bold text-gray-900">Tüm Aktif Siparişler</h2>
+      <h2 className="mb-3 font-bold text-gray-900">Sipariş İzleme</h2>
 
-      <AdminOrderAssignment orders={orders} couriers={couriers} />
+      <AdminOrderAssignment orders={orders} platformCouriers={couriers} />
 
       <div className="mt-4">
         <Link

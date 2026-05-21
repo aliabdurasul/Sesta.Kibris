@@ -57,6 +57,8 @@ export interface Database {
           minimum_order_amount: number | null;
           order_timeout_minutes: number;
           delivery_mode: DeliveryMode;
+          default_courier_id: string | null;
+          hybrid_assign_timeout_minutes: number;
           created_at: string;
           updated_at: string;
         };
@@ -175,6 +177,7 @@ export interface Database {
           assigned_at: string | null;
           picked_up_at: string | null;
           delivered_at: string | null;
+          assignment_escalated_at: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["orders"]["Row"]> & {
           merchant_id: string;

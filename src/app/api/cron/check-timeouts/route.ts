@@ -150,10 +150,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .update({ last_scanned: 0, last_cancelled: 0, updated_at: new Date().toISOString() })
       .eq("job_name", JOB_NAME);
 
+    // Still run HYBRID escalation when no PENDING timeouts
+    let hybridEscalated = 0;
+    const { data: hybridReady } = await admin
+      .from("orders")
+      .select(
+        "id, ready_at, merchants!inner(delivery_mode, hybrid_assign_timeout_minutes)",
+      )
+      .eq("status", "READY")
+      .is("assignment_escalated_at", null);
+
+    if (hybridReady?.length) {
+      const nowMs = Date.now();
+      const ids: string[] = [];
+      for (const row of hybridReady) {
+        const m = row.merchants as
+          | { delivery_mode: string; hybrid_assign_timeout_minutes: number }
+          | { delivery_mode: string; hybrid_assign_timeout_minutes: number }[]
+          | null;
+        const merchant = Array.isArray(m) ? m[0] : m;
+        const readyAt = row.ready_at as string | null;
+        if (merchant?.delivery_mode !== "HYBRID" || !readyAt) continue;
+        const deadline =
+          new Date(readyAt).getTime() +
+          (merchant.hybrid_assign_timeout_minutes ?? 15) * 60 * 1000;
+        if (nowMs >= deadline) ids.push(row.id as string);
+      }
+      if (ids.length > 0) {
+        const { data: updated } = await admin
+          .from("orders")
+          .update({ assignment_escalated_at: new Date().toISOString() })
+          .in("id", ids)
+          .eq("status", "READY")
+          .select("id");
+        hybridEscalated = updated?.length ?? 0;
+      }
+    }
+
     return json({
       ok: true,
       scanned: 0,
       cancelled: 0,
+      hybrid_escalated: hybridEscalated,
       execution_ms: Date.now() - startMs,
       timestamp: runStartedAt,
     });
@@ -209,13 +247,56 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     })
     .eq("job_name", JOB_NAME);
 
+  // ── 8. HYBRID: flag READY orders past merchant assign window ─────────────
+  let hybridEscalated = 0;
+  const { data: hybridReady, error: hybridErr } = await admin
+    .from("orders")
+    .select(
+      "id, ready_at, assignment_escalated_at, merchants!inner(delivery_mode, hybrid_assign_timeout_minutes)",
+    )
+    .eq("status", "READY")
+    .is("assignment_escalated_at", null);
+
+  if (!hybridErr && hybridReady?.length) {
+    const nowMs = Date.now();
+    const toEscalate: string[] = [];
+    for (const row of hybridReady) {
+      const m = row.merchants as
+        | { delivery_mode: string; hybrid_assign_timeout_minutes: number }
+        | { delivery_mode: string; hybrid_assign_timeout_minutes: number }[]
+        | null;
+      const merchant = Array.isArray(m) ? m[0] : m;
+      const readyAt = row.ready_at as string | null;
+      if (merchant?.delivery_mode !== "HYBRID" || !readyAt) continue;
+      const deadline =
+        new Date(readyAt).getTime() +
+        (merchant.hybrid_assign_timeout_minutes ?? 15) * 60 * 1000;
+      if (nowMs >= deadline) toEscalate.push(row.id as string);
+    }
+    if (toEscalate.length > 0) {
+      const { data: updated } = await admin
+        .from("orders")
+        .update({ assignment_escalated_at: new Date().toISOString() })
+        .in("id", toEscalate)
+        .eq("status", "READY")
+        .select("id");
+      hybridEscalated = updated?.length ?? 0;
+    }
+  }
+
   const executionMs = Date.now() - startMs;
-  log.info("cron.check_timeouts.done", { scanned, cancelled, executionMs });
+  log.info("cron.check_timeouts.done", {
+    scanned,
+    cancelled,
+    hybridEscalated,
+    executionMs,
+  });
 
   return json({
     ok: true,
     scanned,
     cancelled,
+    hybrid_escalated: hybridEscalated,
     execution_ms: executionMs,
     timestamp: runStartedAt,
   });
