@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { SessionUser } from "@/lib/auth";
 import { getRoleHomePath } from "@/lib/auth";
@@ -12,8 +13,16 @@ export function BrowseHeader({ session }: BrowseHeaderProps) {
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/"
-          className="text-[17px] font-bold tracking-tight text-brand-navy"
+          className="flex items-center gap-1.5 text-[17px] font-bold tracking-tight text-brand-navy"
         >
+          <Image
+            src="/favicon.png"
+            alt=""
+            width={22}
+            height={22}
+            className="shrink-0 rounded-md"
+            priority
+          />
           SestaKıbrıs
         </Link>
 
