@@ -70,6 +70,9 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
 
           <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-400">
             <span>{display.deliveryEtaLabel}</span>
+            {display.minimumOrderLabel && (
+              <span> • Min. {display.minimumOrderLabel}</span>
+            )}
             {merchant.rating != null && (
               <span className="font-medium text-amber-600">
                 ★ {merchant.rating.toFixed(1)}

@@ -229,6 +229,7 @@ export async function updateMerchantProfile(
   const deliveryMinRaw = formData.get("delivery_time_min") as string | null;
   const deliveryMaxRaw = formData.get("delivery_time_max") as string | null;
   const deliveryFeeRaw = formData.get("delivery_fee") as string | null;
+  const minOrderRaw = formData.get("minimum_order_amount") as string | null;
 
   const delivery_time_min = deliveryMinRaw
     ? parseInt(deliveryMinRaw, 10)
@@ -239,6 +240,14 @@ export async function updateMerchantProfile(
   const delivery_fee = deliveryFeeRaw
     ? Math.round(parseFloat(deliveryFeeRaw) * 100)
     : null;
+  const minimum_order_amount =
+    minOrderRaw?.trim() !== ""
+      ? Math.round(parseFloat(minOrderRaw!) * 100)
+      : null;
+
+  if (minimum_order_amount != null && minimum_order_amount <= 0) {
+    return { error: "Minimum sipariş 0 TL'den büyük olmalıdır." };
+  }
 
   if (
     delivery_time_min != null &&
@@ -269,6 +278,7 @@ export async function updateMerchantProfile(
     delivery_time_min,
     delivery_time_max,
     delivery_fee,
+    minimum_order_amount,
     updated_by_merchant: true,
     is_onboarded: isOnboarded,
     onboarded_at: isOnboarded ? row.onboarded_at ?? now : row.onboarded_at,

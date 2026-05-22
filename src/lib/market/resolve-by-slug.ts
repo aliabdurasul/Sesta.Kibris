@@ -28,6 +28,7 @@ export type MarketDetail = Pick<
   | "delivery_time_min"
   | "delivery_time_max"
   | "delivery_fee"
+  | "minimum_order_amount"
   | "features"
   | "is_onboarded"
   | "is_demo_market"
@@ -35,7 +36,7 @@ export type MarketDetail = Pick<
 >;
 
 const MERCHANT_SELECT =
-  "id, name, slug, user_id, owner_user_id, category, phone, profile_address, is_active, is_open, delivery_mode, default_courier_id, logo_url, cover_image_url, description, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, features, is_onboarded, is_demo_market, updated_by_merchant";
+  "id, name, slug, user_id, owner_user_id, category, phone, profile_address, is_active, is_open, delivery_mode, default_courier_id, logo_url, cover_image_url, description, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, minimum_order_amount, features, is_onboarded, is_demo_market, updated_by_merchant";
 
 export type ResolveMarketResult = {
   merchant: MarketDetail;

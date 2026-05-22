@@ -25,6 +25,7 @@ export type MarketDisplay = {
   isOnboarded: boolean;
   isDemoMarket: boolean;
   deliveryFeeLabel: string | null;
+  minimumOrderLabel: string | null;
   address: string | null;
 };
 
@@ -39,6 +40,7 @@ export type MerchantDisplaySource = MerchantProfileSource & {
   is_demo_market?: boolean;
   updated_by_merchant?: boolean;
   features?: Json | null;
+  minimum_order_amount?: number | null;
 };
 
 const FALLBACK_ETA = "15–20 dk (tahmini)";
@@ -51,10 +53,18 @@ export function getMarketInitials(name: string): string {
   return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
 }
 
-function formatDeliveryFee(kurus: number | null | undefined): string | null {
+function formatMoneyKurus(kurus: number | null | undefined): string | null {
   if (kurus == null || kurus <= 0) return null;
   const tl = kurus / 100;
   return tl % 1 === 0 ? `${tl} TL` : `${tl.toFixed(2)} TL`;
+}
+
+function formatDeliveryFee(kurus: number | null | undefined): string | null {
+  return formatMoneyKurus(kurus);
+}
+
+function formatMinimumOrder(kurus: number | null | undefined): string | null {
+  return formatMoneyKurus(kurus);
 }
 
 function hasDeliveryTimes(merchant: MerchantDisplaySource): boolean {
@@ -145,6 +155,7 @@ export function resolveMarketDisplay(
     isOnboarded: merchant.is_onboarded === true,
     isDemoMarket: merchant.is_demo_market === true,
     deliveryFeeLabel: formatDeliveryFee(merchant.delivery_fee),
+    minimumOrderLabel: formatMinimumOrder(merchant.minimum_order_amount),
     address: merchant.profile_address?.trim() || null,
   };
 }

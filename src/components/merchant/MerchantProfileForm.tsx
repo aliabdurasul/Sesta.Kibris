@@ -36,6 +36,7 @@ type MerchantProfileData = {
   delivery_time_min: number | null;
   delivery_time_max: number | null;
   delivery_fee: number | null;
+  minimum_order_amount: number | null;
   is_onboarded: boolean;
 };
 
@@ -268,23 +269,43 @@ export function MerchantProfileForm({
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">
-            Teslimat ücreti (TL, isteğe bağlı)
-          </label>
-          <input
-            name="delivery_fee"
-            type="number"
-            min={0}
-            step={0.01}
-            defaultValue={
-              merchant.delivery_fee != null
-                ? merchant.delivery_fee / 100
-                : ""
-            }
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-            placeholder="0 = belirtilmedi"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Teslimat ücreti (TL, isteğe bağlı)
+            </label>
+            <input
+              name="delivery_fee"
+              type="number"
+              min={0}
+              step={0.01}
+              defaultValue={
+                merchant.delivery_fee != null
+                  ? merchant.delivery_fee / 100
+                  : ""
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              placeholder="0 = yok"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Min. sipariş (TL)
+            </label>
+            <input
+              name="minimum_order_amount"
+              type="number"
+              min={0}
+              step={0.01}
+              defaultValue={
+                merchant.minimum_order_amount != null
+                  ? merchant.minimum_order_amount / 100
+                  : ""
+              }
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+              placeholder="Örn: 150"
+            />
+          </div>
         </div>
 
         <div>

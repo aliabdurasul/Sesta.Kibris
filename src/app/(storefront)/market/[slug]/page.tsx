@@ -272,6 +272,8 @@ export default async function MarketDetailPage({ params }: PageProps) {
             {display.deliveryEtaLabel}
             {display.openingHoursLabel !== "Bilgi yok" &&
               ` · ${display.openingHoursLabel}`}
+            {display.minimumOrderLabel &&
+              ` · Min. sipariş ${display.minimumOrderLabel}`}
             {display.deliveryFeeLabel && ` · Teslimat ${display.deliveryFeeLabel}`}
           </p>
           {display.address && (

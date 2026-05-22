@@ -21,6 +21,7 @@ export type MerchantProfileSource = {
   delivery_time_min?: number | null;
   delivery_time_max?: number | null;
   delivery_fee?: number | null;
+  minimum_order_amount?: number | null;
 };
 
 const CHECKLIST_KEYS = [

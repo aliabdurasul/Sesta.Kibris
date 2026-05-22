@@ -18,6 +18,7 @@ type MerchantProfileRow = Pick<
   | "delivery_time_min"
   | "delivery_time_max"
   | "delivery_fee"
+  | "minimum_order_amount"
   | "is_onboarded"
 >;
 
@@ -26,7 +27,7 @@ async function loadMerchantProfile(
 ): Promise<MerchantProfileRow | null> {
   const supabase = await createServerClient();
   const select =
-    "id, name, slug, logo_url, cover_image_url, description, profile_address, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, is_onboarded";
+    "id, name, slug, logo_url, cover_image_url, description, profile_address, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, minimum_order_amount, is_onboarded";
 
   const { data } = await supabase
     .from("merchants")

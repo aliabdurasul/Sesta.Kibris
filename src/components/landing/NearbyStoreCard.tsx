@@ -74,6 +74,9 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
               {display.openingHoursLabel !== "Bilgi yok" && (
                 <span> • {display.openingHoursLabel}</span>
               )}
+              {display.minimumOrderLabel && (
+                <span> • Min. {display.minimumOrderLabel}</span>
+              )}
               {display.deliveryFeeLabel && (
                 <span> • Teslimat {display.deliveryFeeLabel}</span>
               )}

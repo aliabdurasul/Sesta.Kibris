@@ -24,6 +24,7 @@ export type PublicMerchantListItem = Pick<
   | "delivery_time_min"
   | "delivery_time_max"
   | "delivery_fee"
+  | "minimum_order_amount"
   | "features"
   | "is_onboarded"
   | "is_demo_market"
@@ -37,7 +38,7 @@ export type MarketCardMerchant = PublicMerchantListItem & {
 };
 
 const PUBLIC_MERCHANT_SELECT =
-  "id, name, slug, category, is_open, phone, profile_address, logo_url, cover_image_url, description, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, features, is_onboarded, is_demo_market, updated_by_merchant";
+  "id, name, slug, category, is_open, phone, profile_address, logo_url, cover_image_url, description, opening_hours, delivery_time_min, delivery_time_max, delivery_fee, minimum_order_amount, features, is_onboarded, is_demo_market, updated_by_merchant";
 
 export async function getPublicMerchants(): Promise<{
   merchants: MarketCardMerchant[];
