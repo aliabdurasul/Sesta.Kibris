@@ -26,38 +26,35 @@ export function MarketBrowseSection({
   const categoryLabel = getCategoryLabel(categoryFilter);
 
   return (
-    <section id="browse-markets" className="scroll-mt-4 space-y-3 px-4">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-base font-bold text-text-primary">
-            {categoryLabel ? `Yakınındaki — ${categoryLabel}` : "Yakınındaki marketler"}
-          </h2>
-          <p className="text-xs text-text-muted">{filtered.length} işletme</p>
-        </div>
-        {categoryFilter && (
-          <a href="/#browse-markets" className="text-xs font-bold text-brand-orange">
-            Tümü
-          </a>
-        )}
-      </div>
+    <section id="browse-markets" className="scroll-mt-2 space-y-3 px-4">
+      <h2 className="border-b border-border pb-2 text-[15px] font-bold text-brand-navy">
+        {categoryLabel
+          ? `Yakınındaki Marketler — ${categoryLabel}`
+          : "Yakınındaki Marketler"}
+      </h2>
 
       {error && (
-        <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
-          Marketler yüklenemiyor. Lütfen tekrar deneyin.
+        <div className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">
+          Marketler yüklenemiyor.
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="rounded-[1.5rem] bg-brand-white p-8 text-center shadow-sm ring-1 ring-black/5">
-          <p className="font-semibold text-text-primary">
-            {categoryFilter ? "Bu kategoride işletme yok" : "Yakında marketler burada"}
+        <div className="rounded-[1.25rem] bg-brand-white py-10 text-center ring-1 ring-border">
+          <p className="text-sm font-semibold text-brand-navy">
+            {categoryFilter ? "Bu kategoride market yok" : "Henüz market yok"}
           </p>
-          <p className="mt-1 text-sm text-text-muted">
-            Farklı bir kategori seç veya daha sonra tekrar dene.
-          </p>
+          {categoryFilter && (
+            <a
+              href="/#browse-markets"
+              className="mt-2 inline-block text-sm font-semibold text-brand-orange"
+            >
+              Tümünü göster
+            </a>
+          )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filtered.map((m) => (
             <NearbyStoreCard key={m.id} merchant={m} />
           ))}

@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-orange: #ff7a00;
-  --color-brand-navy: #0b2a6f;
+  --color-brand-orange: #ff6b2c;
+  --color-orange-soft: #fff1e8;
+  --color-brand-sky: #5bb6ff;
+  --color-brand-navy: #101828;
   --color-brand-white: #ffffff;
-  --color-brand-sky: #4da6ff;
-  --color-app-bg: #f6f7fb;
-  --color-text-primary: #111827;
+  --color-app-bg: #f5f7fa;
+  --color-border: #e9eef5;
+  --color-text-primary: #101828;
   --color-text-secondary: #374151;
   --color-text-muted: #6b7280;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-
-  --radius-card: 1.5rem;
 }
 
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -26,29 +26,14 @@
   }
 }
 
-@keyframes slide-progress {
-  0% {
-    width: 28%;
-  }
-  100% {
-    width: 65%;
-  }
-}
-
 .animate-fade-in {
-  animation: fade-in 0.45s ease-out both;
+  animation: fade-in 0.35s ease-out both;
 }
 
-.animate-slide-progress {
-  animation: slide-progress 3s ease-in-out infinite alternate;
-}
-
-/* Home: full-bleed landing */
 main > .home-screen {
-  padding-bottom: 6.5rem;
+  padding-bottom: 5.5rem;
 }
 
-/* Other storefront pages */
 main > :not(.home-screen) {
   margin-left: auto;
   margin-right: auto;

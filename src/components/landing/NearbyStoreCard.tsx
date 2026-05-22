@@ -11,49 +11,38 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
   const categoryLabel = getCategoryTypeLabel(merchant.category);
   const eta = getDeliveryEta(merchant.category);
   const rating = merchant.rating ?? 4.8;
+  const isOpen = merchant.is_open !== false;
 
   return (
-    <article className="flex gap-3 rounded-[1.5rem] bg-brand-white p-3 shadow-[0_8px_28px_rgba(11,42,111,0.07)] ring-1 ring-black/[0.04] transition-shadow active:shadow-lg">
-      <div
-        className={`h-[4.5rem] w-[4.5rem] shrink-0 rounded-2xl ${thumbClass} shadow-inner`}
-        aria-hidden
-      />
+    <article className="overflow-hidden rounded-[1.25rem] bg-brand-white shadow-[0_4px_16px_rgba(16,24,40,0.06)] ring-1 ring-border transition-shadow active:shadow-md">
+      <div className={`h-24 w-full ${thumbClass}`} aria-hidden />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="truncate font-bold text-text-primary">{merchant.name}</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              {merchant.is_open !== undefined && (
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    merchant.is_open
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-gray-100 text-text-muted"
-                  }`}
-                >
-                  {merchant.is_open ? "Açık" : "Kapalı"}
-                </span>
-              )}
-              <span className="text-[11px] text-text-muted">{categoryLabel}</span>
-            </div>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-bold text-brand-navy">★ {rating.toFixed(1)}</p>
-          </div>
+      <div className="p-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="truncate text-[15px] font-bold text-brand-navy">
+            {merchant.name}
+          </h3>
+          {merchant.is_open !== undefined && (
+            <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold text-emerald-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {isOpen ? "Açık" : "Kapalı"}
+            </span>
+          )}
         </div>
 
-        {merchant.address && (
-          <p className="mt-1 line-clamp-1 text-xs text-text-muted">{merchant.address}</p>
-        )}
-        <p className="mt-1 text-xs font-medium text-brand-orange">{eta} teslimat</p>
+        <p className="mt-1 text-xs text-text-muted">
+          {categoryLabel} • ★{rating.toFixed(1)}
+        </p>
 
-        <Link
-          href={`/merchants/${merchant.slug}`}
-          className="mt-2.5 inline-flex w-full items-center justify-center rounded-xl bg-brand-navy py-2.5 text-sm font-bold text-white transition-colors active:bg-brand-navy/90"
-        >
-          Mağazaya Git
-        </Link>
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-text-secondary">{eta}</span>
+          <Link
+            href={`/merchants/${merchant.slug}`}
+            className="shrink-0 rounded-full bg-brand-navy px-3.5 py-1.5 text-xs font-bold text-white transition-colors active:bg-brand-navy/90"
+          >
+            Git →
+          </Link>
+        </div>
       </div>
     </article>
   );

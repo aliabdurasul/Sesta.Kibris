@@ -6,35 +6,28 @@ import type { PromoSlide } from "@/lib/landing/promo-slides";
 
 const DEFAULT_SLIDES: PromoSlide[] = [
   {
+    id: "promo-20",
+    title: "%20 İNDİRİM",
+    subtitle: "Yerel marketlerde bugün",
+    cta: "Keşfet",
+    href: "#browse-markets",
+  },
+  {
     id: "alkmar",
     title: "Alkmar Market",
-    subtitle: "Taze gıda, su ve günlük ihtiyaçlar — kapına teslim.",
+    subtitle: "Taze gıda — kapına teslim",
     cta: "Keşfet",
     href: "#browse-markets",
-    tag: "Sponsorlu",
-  },
-  {
-    id: "sesta-pack",
-    title: "SestaKıbrıs Market Paketi",
-    subtitle: "Süt, ekmek, yumurta ve sebze — tek siparişte.",
-    cta: "Keşfet",
-    href: "#browse-markets",
-    tag: "Öne Çıkan",
-  },
-  {
-    id: "water",
-    title: "Su siparişi",
-    subtitle: "Damacana ve şişe su — hızlı teslimat.",
-    cta: "Keşfet",
-    href: "/?category=water#browse-markets",
-    tag: "Kampanya",
   },
 ];
 
-const AUTO_MS = 4500;
+const AUTO_MS = 5000;
 
 export function PromoHeroSlider({ slides }: { slides: PromoSlide[] }) {
-  const items = slides.length > 0 ? slides : DEFAULT_SLIDES;
+  const items =
+    slides.length > 0
+      ? [{ ...DEFAULT_SLIDES[0]! }, ...slides.slice(0, 2)]
+      : DEFAULT_SLIDES;
   const [index, setIndex] = useState(0);
 
   const advance = useCallback(() => {
@@ -50,35 +43,22 @@ export function PromoHeroSlider({ slides }: { slides: PromoSlide[] }) {
 
   return (
     <section className="px-4" aria-label="Kampanyalar">
-      <div className="relative overflow-hidden rounded-[1.5rem] shadow-[0_12px_40px_rgba(255,122,0,0.22)]">
-        <Link
-          href={slide.href}
-          className="block min-h-[168px] bg-gradient-to-br from-brand-orange via-[#ff8f2e] to-amber-400 p-5 text-white transition-transform active:scale-[0.99]"
-        >
-          {slide.tag && (
-            <span className="inline-flex rounded-full bg-brand-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm">
-              {slide.tag}
-            </span>
-          )}
-          <h3 className="mt-2 text-xl font-bold leading-tight">{slide.title}</h3>
-          <p className="mt-1.5 max-w-[90%] text-sm leading-snug text-white/90">
-            {slide.subtitle}
+      <Link
+        href={slide.href}
+        className="flex min-h-[104px] items-center justify-between gap-4 rounded-[1.25rem] bg-gradient-to-r from-brand-orange to-[#ff8a4c] px-5 py-4 shadow-[0_6px_20px_rgba(255,107,44,0.22)] transition-transform active:scale-[0.99]"
+      >
+        <div className="min-w-0">
+          <p className="text-lg font-bold leading-tight text-white">
+            {slide.title}
           </p>
-          <span className="mt-4 inline-flex items-center gap-1 rounded-full bg-brand-white px-4 py-2 text-sm font-bold text-brand-orange shadow-md">
-            {slide.cta}
-            <span aria-hidden>→</span>
+          <p className="mt-0.5 text-sm text-white/90">{slide.subtitle}</p>
+          <span className="mt-2.5 inline-flex items-center gap-1 text-sm font-bold text-white">
+            {slide.cta} →
           </span>
+        </div>
+      </Link>
 
-          {/* Decorative grocery silhouettes */}
-          <div className="pointer-events-none absolute -bottom-2 -right-2 flex gap-1 opacity-30" aria-hidden>
-            <div className="h-16 w-12 rounded-lg bg-white/40" />
-            <div className="h-20 w-14 rounded-lg bg-white/50" />
-            <div className="h-14 w-10 rounded-full bg-white/35" />
-          </div>
-        </Link>
-      </div>
-
-      <div className="mt-3 flex justify-center gap-1.5">
+      <div className="mt-2.5 flex justify-center gap-1.5">
         {items.map((s, i) => (
           <button
             key={s.id}
@@ -86,8 +66,10 @@ export function PromoHeroSlider({ slides }: { slides: PromoSlide[] }) {
             aria-label={`Kampanya ${i + 1}`}
             aria-current={i === index}
             onClick={() => setIndex(i)}
-            className={`h-2 rounded-full transition-all duration-300 ${
-              i === index ? "w-6 bg-brand-orange" : "w-2 bg-gray-300"
+            className={`rounded-full transition-all ${
+              i === index
+                ? "h-1.5 w-4 bg-brand-orange"
+                : "h-1.5 w-1.5 bg-border"
             }`}
           />
         ))}

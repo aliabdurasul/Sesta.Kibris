@@ -10,34 +10,33 @@ export function CategoryScroll() {
   const active = searchParams.get("category");
 
   return (
-    <section className="space-y-3">
-      <h2 className="px-4 text-base font-bold text-text-primary">Kategoriler</h2>
-      <div className="flex gap-3 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <section id="categories" className="space-y-2.5">
+      <h2 className="px-4 text-[15px] font-bold text-brand-navy">Kategoriler</h2>
+      <div className="flex gap-2 overflow-x-auto px-4 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <Link
+          href="/#browse-markets"
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all ${
+            !active
+              ? "bg-brand-orange text-white shadow-sm"
+              : "bg-brand-white text-text-secondary ring-1 ring-border"
+          }`}
+        >
+          Tümü
+        </Link>
         {SESTA_CATEGORIES.map((cat) => {
           const isActive = active === cat.filter;
           return (
             <Link
               key={cat.id}
               href={`/?category=${cat.filter}#browse-markets`}
-              className={`flex w-[4.5rem] shrink-0 flex-col items-center gap-2 rounded-2xl bg-brand-white p-3 shadow-[0_4px_16px_rgba(11,42,111,0.06)] ring-1 transition-all active:scale-95 ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all ${
                 isActive
-                  ? "ring-brand-orange shadow-[0_0_0_3px_rgba(255,122,0,0.2)]"
-                  : "ring-black/5"
+                  ? "bg-orange-soft text-brand-orange ring-1 ring-brand-orange/30"
+                  : "bg-brand-white text-text-secondary ring-1 ring-border"
               }`}
             >
-              <div
-                className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                  isActive ? "bg-brand-orange/10" : "bg-app-bg"
-                }`}
-              >
-                <CategoryIcon type={cat.icon} />
-              </div>
-              <span className="text-center text-[11px] font-semibold leading-tight text-text-secondary">
-                {cat.label}
-              </span>
-              {isActive && (
-                <span className="h-1.5 w-1.5 rounded-full bg-brand-orange" />
-              )}
+              <CategoryIcon type={cat.icon} />
+              {cat.label}
             </Link>
           );
         })}

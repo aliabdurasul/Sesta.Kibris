@@ -27,9 +27,9 @@ export function CartBar({ hideOnHome = false }: { hideOnHome?: boolean }) {
     <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pb-20">
       <Link
         href="/checkout"
-        className="mx-auto flex max-w-lg items-center justify-between rounded-2xl bg-brand-navy px-5 py-4 text-white shadow-lg shadow-brand-navy/25"
+        className="mx-auto flex max-w-lg items-center justify-between rounded-2xl bg-brand-navy px-5 py-3.5 text-white shadow-lg"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-sm font-bold">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-sm font-bold text-white">
           {count}
         </span>
         <span className="font-semibold">Sepeti Görüntüle</span>

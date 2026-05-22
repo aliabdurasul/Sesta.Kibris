@@ -1,29 +1,29 @@
 export function getStoreThumbnailClass(category?: string): string {
   switch (category) {
     case "water":
-      return "bg-gradient-to-br from-brand-sky/80 to-brand-navy/70";
+      return "bg-gradient-to-br from-brand-sky/70 to-brand-sky";
     case "gas":
-      return "bg-gradient-to-br from-slate-400 to-slate-600";
+      return "bg-gradient-to-br from-slate-400 to-slate-500";
     case "campus":
-      return "bg-gradient-to-br from-brand-navy to-indigo-900";
+      return "bg-gradient-to-br from-brand-navy/80 to-brand-navy";
     case "local":
-      return "bg-gradient-to-br from-amber-400 to-brand-orange";
+      return "bg-gradient-to-br from-brand-orange/80 to-brand-orange";
     case "grocery":
     default:
-      return "bg-gradient-to-br from-brand-orange/90 to-amber-500";
+      return "bg-gradient-to-br from-emerald-400/90 to-teal-500/90";
   }
 }
 
 export function getCategoryTypeLabel(category?: string): string {
   switch (category) {
     case "water":
-      return "Su & içecek";
+      return "Su & İçecek";
     case "gas":
-      return "Tüp gaz";
+      return "Tüp";
     case "campus":
       return "Kampüs";
     case "local":
-      return "Yerel dükkan";
+      return "Yerel";
     case "grocery":
     default:
       return "Market";
