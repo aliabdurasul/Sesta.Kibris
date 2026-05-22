@@ -59,6 +59,18 @@ export interface Database {
           delivery_mode: DeliveryMode;
           default_courier_id: string | null;
           hybrid_assign_timeout_minutes: number;
+          logo_url: string | null;
+          cover_image_url: string | null;
+          description: string | null;
+          opening_hours: Json | null;
+          delivery_time_min: number | null;
+          delivery_time_max: number | null;
+          delivery_fee: number | null;
+          features: Json;
+          is_demo_market: boolean;
+          is_onboarded: boolean;
+          updated_by_merchant: boolean;
+          onboarded_at: string | null;
           created_at: string;
           updated_at: string;
         };

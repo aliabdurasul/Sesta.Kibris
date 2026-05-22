@@ -1,15 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
+import { getMarketInitials } from "@/lib/market/resolve-display";
+import type { MarketCardMerchant } from "@/lib/merchants/list-public";
 
-export interface MarketCardMerchant {
-  id: string;
-  name: string;
-  slug: string;
-  category?: string;
-  is_open?: boolean;
-  address?: string | null;
-  rating?: number | null;
-  distanceKm?: number | null;
-}
+export type { MarketCardMerchant };
 
 const CATEGORY_LABELS: Record<string, string> = {
   grocery: "Market / Gıda",
@@ -23,6 +17,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
+  const { display } = merchant;
   const categoryLabel = merchant.category
     ? (CATEGORY_LABELS[merchant.category] ?? merchant.category)
     : null;
@@ -30,15 +25,32 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
   return (
     <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md">
       <div className="flex gap-4 p-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sesta-navy to-sesta-blue text-2xl text-white">
-          🏪
-        </div>
+        {display.logoUrl ? (
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl ring-1 ring-gray-100">
+            <Image
+              src={display.logoUrl}
+              alt=""
+              fill
+              className="object-cover"
+              unoptimized={display.logoUrl.startsWith("http")}
+            />
+          </div>
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sesta-navy to-sesta-blue text-lg font-bold text-white">
+            {getMarketInitials(display.name)}
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate font-semibold text-gray-900">
-              {merchant.name}
+              {display.name}
             </h3>
+            {!display.isOnboarded && (
+              <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                Profil tamamlanıyor
+              </span>
+            )}
             {merchant.is_open !== undefined && (
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -57,6 +69,7 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
           )}
 
           <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-400">
+            <span>{display.deliveryEtaLabel}</span>
             {merchant.rating != null && (
               <span className="font-medium text-amber-600">
                 ★ {merchant.rating.toFixed(1)}

@@ -5,7 +5,7 @@ import { PromoHeroSlider } from "@/components/landing/PromoHeroSlider";
 import { buildPromoSlidesFromMerchants } from "@/lib/landing/promo-slides";
 import { CategoryScroll } from "@/components/landing/CategoryScroll";
 import { MarketBrowseSection } from "@/components/landing/MarketBrowseSection";
-import type { MarketCardMerchant } from "@/components/landing/MarketCard";
+import type { MarketCardMerchant } from "@/lib/merchants/list-public";
 
 interface LandingPageProps {
   merchants: MarketCardMerchant[];

@@ -8,11 +8,12 @@ export type MarketSeoInput = {
   category: string;
   merchantId: string;
   address?: string | null;
+  coverUrl?: string | null;
   noindex?: boolean;
 };
 
 export function buildMarketMetadata(input: MarketSeoInput): Metadata {
-  const { name, slug, category, merchantId, noindex } = input;
+  const { name, slug, category, merchantId, coverUrl, noindex } = input;
   const title = `${name} | Kıbrıs Online Market`;
   const description = `${name} üzerinden taze ürünler, hızlı teslimat ve güvenli ödeme ile online market alışverişi yapın.`;
   const keywords = [
@@ -22,8 +23,9 @@ export function buildMarketMetadata(input: MarketSeoInput): Metadata {
     "local delivery",
   ];
   const canonical = `${env.NEXT_PUBLIC_APP_URL}/market/${slug}`;
-  const imagePath = getMarketCoverImage(category, merchantId);
-  const imageUrl = `${env.NEXT_PUBLIC_APP_URL}${imagePath}`;
+  const imageUrl = coverUrl?.startsWith("http")
+    ? coverUrl
+    : `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
 
   return {
     title,

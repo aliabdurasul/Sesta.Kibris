@@ -12,7 +12,10 @@ import {
   resolveMarketBySlug,
   type MarketDetail,
 } from "@/lib/market/resolve-by-slug";
+import { resolveMarketDisplay } from "@/lib/market/resolve-display";
 import { buildMarketMetadata } from "@/lib/market/seo-metadata";
+import Link from "next/link";
+import Image from "next/image";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
 import { MerchantSlugNav } from "@/components/merchant/MerchantSlugNav";
@@ -105,12 +108,15 @@ export async function generateMetadata({ params }: PageProps) {
     session?.role === "merchant" &&
     userOwnsMerchant(session.id, resolved.merchant);
 
+  const display = resolveMarketDisplay(resolved.merchant);
+
   return buildMarketMetadata({
     name: resolved.merchant.name,
     slug: resolved.canonicalSlug,
     category: resolved.merchant.category,
     merchantId: resolved.merchant.id,
     address: resolved.merchant.address,
+    coverUrl: display.coverUrl,
     noindex: isOwner,
   });
 }
@@ -169,6 +175,15 @@ export default async function MarketDetailPage({ params }: PageProps) {
 
         <MerchantSlugNav slug={canonicalSlug} />
 
+        {!merchantForOwner.is_onboarded && (
+          <Link
+            href="/merchant/profile"
+            className="mb-4 block rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800 ring-1 ring-blue-200 hover:bg-blue-100"
+          >
+            Mağaza profilini tamamla → Logo, kapak ve çalışma saatleri
+          </Link>
+        )}
+
         <h2 className="mb-4 text-lg font-bold text-gray-900">
           Aktif Siparişler
           {orders.length > 0 && (
@@ -199,6 +214,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
   }
 
   const products = await getPublicProducts(merchantForOwner.id);
+  const display = resolveMarketDisplay(merchantForOwner);
 
   return (
     <div>
@@ -208,33 +224,67 @@ export default async function MarketDetailPage({ params }: PageProps) {
         category={merchantForOwner.category}
         merchantId={merchantForOwner.id}
         address={merchantForOwner.address}
+        coverUrl={display.coverUrl}
+        description={display.description}
       />
 
-      <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="text-xl font-bold text-gray-900">
-            {merchantForOwner.name}
-          </h1>
-          <span
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-              merchantForOwner.is_open
-                ? "bg-green-100 text-green-700"
-                : "bg-gray-100 text-gray-500"
-            }`}
-          >
-            {merchantForOwner.is_open ? "Açık" : "Şu an kapalı"}
-          </span>
+      <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
+        <div className="relative aspect-[21/9] w-full bg-gray-100">
+          <Image
+            src={display.coverUrl}
+            alt=""
+            fill
+            className="object-cover"
+            priority
+            unoptimized={display.coverUrl.startsWith("http")}
+          />
         </div>
-        {merchantForOwner.address && (
-          <p className="mt-1 text-sm text-gray-500">
-            {merchantForOwner.address}
-          </p>
-        )}
-        {!merchantForOwner.is_open && (
-          <div className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700 ring-1 ring-amber-200">
-            Bu market şu an siparişe kapalı. Menüyü inceleyebilirsiniz.
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {display.logoUrl ? (
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-gray-100">
+                  <Image
+                    src={display.logoUrl}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              ) : null}
+              <h1 className="text-xl font-bold text-gray-900">{display.name}</h1>
+            </div>
+            <span
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                merchantForOwner.is_open
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {merchantForOwner.is_open ? "Açık" : "Şu an kapalı"}
+            </span>
           </div>
-        )}
+          {display.description && (
+            <p className="mt-2 text-sm text-gray-600">{display.description}</p>
+          )}
+          <p className="mt-2 text-sm text-gray-500">
+            {display.deliveryEtaLabel}
+            {display.openingHoursLabel !== "Bilgi yok" &&
+              ` · ${display.openingHoursLabel}`}
+            {display.deliveryFeeLabel && ` · Teslimat ${display.deliveryFeeLabel}`}
+          </p>
+          {merchantForOwner.address && (
+            <p className="mt-1 text-sm text-gray-400">
+              {merchantForOwner.address}
+            </p>
+          )}
+          {!merchantForOwner.is_open && (
+            <div className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700 ring-1 ring-amber-200">
+              Bu market şu an siparişe kapalı. Menüyü inceleyebilirsiniz.
+            </div>
+          )}
+        </div>
       </div>
 
       {products.length === 0 ? (

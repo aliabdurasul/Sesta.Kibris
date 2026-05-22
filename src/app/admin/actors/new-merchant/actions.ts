@@ -90,6 +90,9 @@ export async function createMerchantAction(
       is_active: true,
       is_open: true,
       delivery_mode: "MERCHANT_DELIVERY",
+      is_onboarded: false,
+      is_demo_market: false,
+      updated_by_merchant: false,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")

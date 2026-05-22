@@ -7,6 +7,8 @@ type MarketJsonLdProps = {
   category: string;
   merchantId: string;
   address?: string | null;
+  coverUrl?: string;
+  description?: string | null;
 };
 
 export function MarketJsonLd({
@@ -15,10 +17,16 @@ export function MarketJsonLd({
   category,
   merchantId,
   address,
+  coverUrl,
+  description: customDescription,
 }: MarketJsonLdProps) {
   const url = `${env.NEXT_PUBLIC_APP_URL}/market/${slug}`;
-  const description = `${name} üzerinden taze ürünler, hızlı teslimat ve güvenli ödeme ile online market alışverişi yapın.`;
-  const image = `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
+  const description =
+    customDescription?.trim() ||
+    `${name} üzerinden taze ürünler, hızlı teslimat ve güvenli ödeme ile online market alışverişi yapın.`;
+  const image = coverUrl?.startsWith("http")
+    ? coverUrl
+    : `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",

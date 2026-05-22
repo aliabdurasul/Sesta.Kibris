@@ -19,7 +19,7 @@ async function getActors() {
   const [merchantsRes, couriersRes] = await Promise.all([
     supabase
       .from("merchants")
-      .select("id, name, slug, is_active, is_open, created_at")
+      .select("id, name, slug, is_active, is_open, is_onboarded, is_demo_market, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
@@ -45,7 +45,14 @@ async function getActors() {
   return {
     merchants: (merchantsRes.data ?? []) as Pick<
       MerchantRow,
-      "id" | "name" | "slug" | "is_active" | "is_open" | "created_at"
+      | "id"
+      | "name"
+      | "slug"
+      | "is_active"
+      | "is_open"
+      | "is_onboarded"
+      | "is_demo_market"
+      | "created_at"
     >[],
     couriers: (couriersRes.data ?? []) as (Pick<
       CourierRow,
@@ -121,6 +128,31 @@ export default async function ActorsPage({ searchParams }: PageProps) {
                 <div>
                   <p className="text-sm font-medium text-gray-900">{m.name}</p>
                   <p className="text-xs text-gray-400">/{m.slug}</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {m.is_active ? (
+                      <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                        Yayında
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                        Pasif
+                      </span>
+                    )}
+                    {m.is_onboarded ? (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                        Profil tamam
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                        Profil eksik
+                      </span>
+                    )}
+                    {m.is_demo_market && (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                        Demo
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <MerchantAdminToggles
                   merchantId={m.id}
