@@ -78,9 +78,6 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
             {merchant.distanceKm != null && (
               <span>{merchant.distanceKm.toFixed(1)} km</span>
             )}
-            {merchant.address && !merchant.distanceKm && (
-              <span className="truncate">{merchant.address}</span>
-            )}
           </div>
         </div>
       </div>
