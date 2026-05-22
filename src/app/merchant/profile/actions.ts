@@ -9,6 +9,7 @@ import {
   parseOpeningHours,
   type OpeningHours,
 } from "@/lib/market/onboarding";
+import { normalizeWhatsAppDigits } from "@/lib/market/whatsapp";
 import type { Database, Json } from "@/types/database";
 
 type MerchantProfileUpdate =
@@ -225,6 +226,8 @@ export async function updateMerchantProfile(
 
   const profile_address =
     (formData.get("profile_address") as string | null)?.trim() || null;
+  const whatsappRaw =
+    (formData.get("whatsapp_phone") as string | null)?.trim() || null;
   const description = (formData.get("description") as string | null)?.trim() || null;
   const deliveryMinRaw = formData.get("delivery_time_min") as string | null;
   const deliveryMaxRaw = formData.get("delivery_time_max") as string | null;
@@ -247,6 +250,15 @@ export async function updateMerchantProfile(
 
   if (minimum_order_amount != null && minimum_order_amount <= 0) {
     return { error: "Minimum sipariş 0 TL'den büyük olmalıdır." };
+  }
+
+  let whatsapp_phone: string | null = whatsappRaw;
+  if (whatsappRaw) {
+    const digits = normalizeWhatsAppDigits(whatsappRaw);
+    if (!digits) {
+      return { error: "Geçerli bir WhatsApp numarası girin." };
+    }
+    whatsapp_phone = whatsappRaw;
   }
 
   if (
@@ -273,6 +285,7 @@ export async function updateMerchantProfile(
 
   const { error } = await updateMerchantRow(merchantId, {
     profile_address,
+    whatsapp_phone,
     description,
     opening_hours: opening_hours as Json,
     delivery_time_min,

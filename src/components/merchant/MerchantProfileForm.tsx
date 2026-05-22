@@ -32,6 +32,7 @@ type MerchantProfileData = {
   cover_image_url: string | null;
   description: string | null;
   profile_address: string | null;
+  whatsapp_phone: string | null;
   opening_hours: OpeningHours;
   delivery_time_min: number | null;
   delivery_time_max: number | null;
@@ -224,6 +225,23 @@ export function MerchantProfileForm({
           <p className="mt-1 text-xs text-gray-400">
             Yönetici kaydındaki adres müşterilere gösterilmez; yalnızca buraya
             yazdığınız adres mağaza sayfasında görünür.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            WhatsApp iletişim numarası
+          </label>
+          <input
+            name="whatsapp_phone"
+            type="tel"
+            defaultValue={merchant.whatsapp_phone ?? ""}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            placeholder="+90 5XX XXX XXXX"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Mağaza sayfasında görünür; müşteri tıklayınca WhatsApp sohbeti açılır.
+            Browse listesinde gösterilmez.
           </p>
         </div>
 
