@@ -12,7 +12,10 @@ import {
   resolveMarketBySlug,
   type MarketDetail,
 } from "@/lib/market/resolve-by-slug";
-import { resolveMarketDisplay } from "@/lib/market/resolve-display";
+import {
+  getMarketInitials,
+  resolveMarketDisplay,
+} from "@/lib/market/resolve-display";
 import { buildMarketMetadata } from "@/lib/market/seo-metadata";
 import Link from "next/link";
 import Image from "next/image";
@@ -228,18 +231,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
         description={display.description}
       />
 
-      <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100">
-        <div className="relative aspect-[21/9] w-full bg-gray-100">
-          <Image
-            src={display.coverUrl}
-            alt=""
-            fill
-            className="object-cover"
-            priority
-            unoptimized={display.coverUrl.startsWith("http")}
-          />
-        </div>
-        <div className="p-5">
+      <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               {display.logoUrl ? (
@@ -252,7 +244,11 @@ export default async function MarketDetailPage({ params }: PageProps) {
                     unoptimized
                   />
                 </div>
-              ) : null}
+              ) : (
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-sm font-bold text-accent-strong">
+                  {getMarketInitials(display.name)}
+                </div>
+              )}
               <h1 className="text-xl font-bold text-gray-900">{display.name}</h1>
             </div>
             <span
@@ -284,7 +280,6 @@ export default async function MarketDetailPage({ params }: PageProps) {
               Bu market şu an siparişe kapalı. Menüyü inceleyebilirsiniz.
             </div>
           )}
-        </div>
       </div>
 
       {products.length === 0 ? (
