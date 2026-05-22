@@ -75,7 +75,7 @@ export function BrowseHeader({ session }: BrowseHeaderProps) {
         <input
           type="search"
           placeholder="Market, ürün ara..."
-          className="w-full rounded-[1.25rem] border border-border bg-app-bg py-3 pl-10 pr-4 text-sm text-brand-navy shadow-[0_2px_12px_rgba(16,24,40,0.04)] placeholder:text-text-muted focus:border-brand-sky/50 focus:outline-none focus:ring-2 focus:ring-brand-sky/20"
+          className="w-full rounded-[1.25rem] border border-border bg-app-bg py-3 pl-10 pr-4 text-sm text-brand-navy placeholder:text-text-muted focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/15"
         />
       </label>
     </header>

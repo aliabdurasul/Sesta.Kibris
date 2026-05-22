@@ -29,7 +29,7 @@ export function CartBar({ hideOnHome = false }: { hideOnHome?: boolean }) {
         href="/checkout"
         className="mx-auto flex max-w-lg items-center justify-between rounded-2xl bg-brand-navy px-5 py-3.5 text-white shadow-lg"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-orange text-sm font-bold text-white">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-strong text-sm font-bold text-white">
           {count}
         </span>
         <span className="font-semibold">Sepeti Görüntüle</span>

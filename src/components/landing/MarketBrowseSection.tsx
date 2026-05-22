@@ -47,7 +47,7 @@ export function MarketBrowseSection({
           {categoryFilter && (
             <a
               href="/#browse-markets"
-              className="mt-2 inline-block text-sm font-semibold text-brand-orange"
+              className="mt-2 inline-block text-sm font-semibold text-accent-strong"
             >
               Tümünü göster
             </a>

@@ -1,9 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-orange: #ff6b2c;
-  --color-orange-soft: #fff1e8;
-  --color-brand-sky: #5bb6ff;
+  /* Option A — vivid sky accent (sparing use) */
+  --color-accent: #38bdf8;
+  --color-accent-strong: #0ea5e9;
+  --color-accent-soft: #eff8ff;
+
   --color-brand-navy: #101828;
   --color-brand-white: #ffffff;
   --color-app-bg: #f5f7fa;

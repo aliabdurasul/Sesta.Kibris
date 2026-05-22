@@ -13,7 +13,7 @@ const TABS = [
 ] as const;
 
 function TabIcon({ type, active }: { type: string; active: boolean }) {
-  const stroke = active ? "#FF6B2C" : "#6B7280";
+  const stroke = active ? "#0EA5E9" : "#6B7280";
   const cls = "h-[22px] w-[22px]";
   switch (type) {
     case "cart":
@@ -59,11 +59,8 @@ export function HomeBottomNav() {
   if (pathname !== "/") return null;
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 z-50"
-      aria-label="Ana menü"
-    >
-      <div className="mx-auto max-w-lg rounded-t-[1.5rem] border-t border-border bg-brand-white/90 px-6 pb-5 pt-2.5 shadow-[0_-8px_32px_rgba(16,24,40,0.08)] backdrop-blur-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50" aria-label="Ana menü">
+      <div className="mx-auto max-w-lg rounded-t-[1.25rem] border-t border-border bg-brand-white/95 px-6 pb-5 pt-2.5 shadow-[0_-4px_24px_rgba(16,24,40,0.06)] backdrop-blur-md">
         <div className="flex items-center justify-between">
           {TABS.map((tab) => {
             const active =
@@ -72,8 +69,7 @@ export function HomeBottomNav() {
                 : tab.href.startsWith("/#")
                   ? false
                   : pathname.startsWith(tab.href);
-            const showBadge =
-              tab.icon === "cart" && mounted && cartCount > 0;
+            const showBadge = tab.icon === "cart" && mounted && cartCount > 0;
 
             return (
               <Link
@@ -83,14 +79,14 @@ export function HomeBottomNav() {
               >
                 <TabIcon type={tab.icon} active={active} />
                 <span
-                  className={`text-[10px] font-semibold ${
-                    active ? "text-brand-orange" : "text-text-muted"
+                  className={`text-[10px] font-medium ${
+                    active ? "text-accent-strong" : "text-text-muted"
                   }`}
                 >
                   {tab.label}
                 </span>
                 {showBadge && (
-                  <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-orange px-1 text-[9px] font-bold text-white">
+                  <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-strong px-1 text-[9px] font-bold text-white">
                     {cartCount > 9 ? "9+" : cartCount}
                   </span>
                 )}
