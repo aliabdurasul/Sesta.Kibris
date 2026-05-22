@@ -57,28 +57,28 @@ function formatDeliveryFee(kurus: number | null | undefined): string | null {
   return tl % 1 === 0 ? `${tl} TL` : `${tl.toFixed(2)} TL`;
 }
 
-function formatDeliveryEta(
-  merchant: MerchantDisplaySource,
-  useMerchantData: boolean,
-): string {
-  if (
-    useMerchantData &&
+function hasDeliveryTimes(merchant: MerchantDisplaySource): boolean {
+  return (
     merchant.delivery_time_min != null &&
-    merchant.delivery_time_max != null
+    merchant.delivery_time_min > 0
+  );
+}
+
+function formatDeliveryEta(merchant: MerchantDisplaySource): string {
+  if (
+    merchant.delivery_time_min != null &&
+    merchant.delivery_time_max != null &&
+    merchant.delivery_time_max > 0
   ) {
     if (merchant.delivery_time_min === merchant.delivery_time_max) {
       return `${merchant.delivery_time_min} dk`;
     }
     return `${merchant.delivery_time_min}–${merchant.delivery_time_max} dk`;
   }
-  if (
-    useMerchantData &&
-    merchant.delivery_time_min != null &&
-    merchant.delivery_time_min > 0
-  ) {
+  if (hasDeliveryTimes(merchant)) {
     return `${merchant.delivery_time_min} dk`;
   }
-  if (!useMerchantData && !merchant.updated_by_merchant) {
+  if (merchant.is_demo_market) {
     return getDeliveryEta(merchant.category);
   }
   return FALLBACK_ETA;
@@ -115,38 +115,20 @@ function extractRating(features: Json | null | undefined): number | null {
   return typeof r === "number" && r > 0 ? r : null;
 }
 
-function merchantHasProfileData(merchant: MerchantDisplaySource): boolean {
-  return Boolean(
-    merchant.updated_by_merchant ||
-      merchant.logo_url ||
-      merchant.cover_image_url ||
-      merchant.description ||
-      merchant.opening_hours ||
-      merchant.delivery_time_min != null ||
-      merchant.delivery_time_max != null,
-  );
-}
-
+/** Public storefront fields — each published when the merchant has saved it. */
 export function resolveMarketDisplay(
   merchant: MerchantDisplaySource,
 ): MarketDisplay {
-  const useMerchantData = merchantHasProfileData(merchant);
   const hours = parseOpeningHours(merchant.opening_hours);
+  const coverUrl = merchant.cover_image_url?.trim()
+    ? merchant.cover_image_url.trim()
+    : getMarketCoverImage(merchant.category, merchant.id);
 
-  const coverUrl =
-    useMerchantData && merchant.cover_image_url?.trim()
-      ? merchant.cover_image_url.trim()
-      : getMarketCoverImage(merchant.category, merchant.id);
+  const logoUrl = merchant.logo_url?.trim() ? merchant.logo_url.trim() : null;
 
-  const logoUrl =
-    useMerchantData && merchant.logo_url?.trim()
-      ? merchant.logo_url.trim()
-      : null;
-
-  const openingHoursLabel =
-    useMerchantData && hasOpeningHoursData(merchant.opening_hours)
-      ? formatOpeningHoursLabel(hours)
-      : FALLBACK_HOURS;
+  const openingHoursLabel = hasOpeningHoursData(merchant.opening_hours)
+    ? formatOpeningHoursLabel(hours)
+    : FALLBACK_HOURS;
 
   return {
     name: merchant.name,
@@ -156,7 +138,7 @@ export function resolveMarketDisplay(
     logoUrl,
     coverUrl,
     description: merchant.description?.trim() || null,
-    deliveryEtaLabel: formatDeliveryEta(merchant, useMerchantData),
+    deliveryEtaLabel: formatDeliveryEta(merchant),
     openingHoursLabel,
     rating: extractRating(merchant.features),
     isOpen: merchant.is_open !== false,

@@ -58,6 +58,12 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
               )}
             </div>
 
+            {display.description && (
+              <p className="mt-1 line-clamp-2 text-xs text-brand-navy/80">
+                {display.description}
+              </p>
+            )}
+
             <p className="mt-0.5 text-xs text-text-muted">
               {merchant.rating != null && (
                 <span className="font-medium text-amber-600">
@@ -67,6 +73,9 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
               {display.deliveryEtaLabel}
               {display.openingHoursLabel !== "Bilgi yok" && (
                 <span> • {display.openingHoursLabel}</span>
+              )}
+              {display.deliveryFeeLabel && (
+                <span> • Teslimat {display.deliveryFeeLabel}</span>
               )}
             </p>
           </div>
