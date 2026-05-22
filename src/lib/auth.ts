@@ -329,7 +329,7 @@ export async function signOut(): Promise<void> {
   clearSessionAuxCookies((name, value, options) => {
     store.set(name, value, options);
   });
-  redirect("/merchants");
+  redirect("/");
 }
 
 // ─── Safe context (never throws) ─────────────────────────────────────────────

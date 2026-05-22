@@ -71,6 +71,21 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["merchants"]["Row"]>;
       };
+      merchant_slug_redirects: {
+        Row: {
+          old_slug: string;
+          merchant_id: string;
+          created_at: string;
+        };
+        Insert: {
+          old_slug: string;
+          merchant_id: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["merchant_slug_redirects"]["Row"]
+        >;
+      };
       products: {
         Row: {
           id: string;

@@ -19,7 +19,7 @@ export default async function CustomerLayout({
     <div className="flex min-h-screen flex-col bg-gray-50">
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
         <div className="flex items-center justify-between">
-          <a href="/merchants" className="text-lg font-bold text-gray-900">
+          <a href="/" className="text-lg font-bold text-gray-900">
             SestaKıbrıs
           </a>
           <span className="text-sm text-gray-400">{session.email}</span>

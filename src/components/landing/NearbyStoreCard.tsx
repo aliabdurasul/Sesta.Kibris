@@ -42,7 +42,7 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
 
         <div className="mt-2.5 flex justify-end">
           <Link
-            href={`/merchants/${merchant.slug}`}
+            href={`/market/${merchant.slug}`}
             className="rounded-full border border-border bg-brand-white px-3.5 py-1.5 text-xs font-semibold text-brand-navy transition-colors hover:border-accent hover:text-accent-strong active:bg-accent-soft"
           >
             Git →

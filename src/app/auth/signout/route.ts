@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"]!;
   const supabaseAnonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!;
 
-  let response = NextResponse.redirect(new URL("/merchants", request.url));
+  let response = NextResponse.redirect(new URL("/", request.url));
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {

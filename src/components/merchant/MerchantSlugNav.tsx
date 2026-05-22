@@ -9,7 +9,7 @@ interface Props {
 
 export function MerchantSlugNav({ slug }: Props) {
   const pathname = usePathname();
-  const ordersHref = `/merchants/${slug}`;
+  const ordersHref = `/market/${slug}`;
   const productsHref = "/merchant/products";
 
   const onOrders =

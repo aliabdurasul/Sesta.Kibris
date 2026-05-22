@@ -1,6 +1,6 @@
 /**
  * Storefront loading skeleton.
- * Shown during server component rendering for /merchants and /merchants/[slug].
+ * Shown during server component rendering for /market and /market/[slug].
  */
 export default function StorefrontLoading() {
   return (

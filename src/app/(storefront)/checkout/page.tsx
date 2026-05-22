@@ -71,7 +71,7 @@ export default async function CheckoutPage() {
         <div className="mx-auto max-w-xl">
           <div className="mb-6 flex items-center gap-3">
             <Link
-              href="/merchants"
+              href="/#browse-markets"
               className="text-sm text-blue-600 hover:underline"
             >
               ← Alışverişe dön
@@ -94,7 +94,7 @@ export default async function CheckoutPage() {
         <div className="mx-auto max-w-xl">
           <div className="mb-6 flex items-center gap-3">
             <Link
-              href="/merchants"
+              href="/#browse-markets"
               className="text-sm text-blue-600 hover:underline"
             >
               ← Alışverişe dön
@@ -112,7 +112,7 @@ export default async function CheckoutPage() {
       <div className="mx-auto max-w-xl">
         <div className="mb-6 flex items-center gap-3">
           <Link
-            href="/merchants"
+            href="/#browse-markets"
             className="text-sm text-blue-600 hover:underline"
           >
             ← Alışverişe dön

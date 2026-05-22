@@ -74,7 +74,7 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
 
       <div className="border-t border-gray-50 px-4 py-3">
         <Link
-          href={`/merchants/${merchant.slug}`}
+          href={`/market/${merchant.slug}`}
           className="flex w-full items-center justify-center rounded-xl bg-sesta-navy px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-sesta-navy/90"
         >
           Mağazayı Ziyaret Et

@@ -1,0 +1,45 @@
+import { env } from "@/lib/env";
+import { getMarketCoverImage } from "@/lib/landing/market-images";
+
+type MarketJsonLdProps = {
+  name: string;
+  slug: string;
+  category: string;
+  merchantId: string;
+  address?: string | null;
+};
+
+export function MarketJsonLd({
+  name,
+  slug,
+  category,
+  merchantId,
+  address,
+}: MarketJsonLdProps) {
+  const url = `${env.NEXT_PUBLIC_APP_URL}/market/${slug}`;
+  const description = `${name} üzerinden taze ürünler, hızlı teslimat ve güvenli ödeme ile online market alışverişi yapın.`;
+  const image = `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
+
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    name,
+    url,
+    description,
+    image,
+  };
+
+  if (address) {
+    jsonLd.address = {
+      "@type": "PostalAddress",
+      streetAddress: address,
+    };
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
+}

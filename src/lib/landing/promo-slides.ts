@@ -15,6 +15,6 @@ export function buildPromoSlidesFromMerchants(
     subtitle:
       m.category === "water" ? "Su siparişi — hızlı teslimat" : "Günlük market alışverişi",
     cta: "Keşfet",
-    href: `/merchants/${m.slug}`,
+    href: `/market/${m.slug}`,
   }));
 }

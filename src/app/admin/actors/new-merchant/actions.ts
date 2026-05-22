@@ -12,6 +12,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { requireRole } from "@/lib/auth";
 import { log } from "@/lib/logger";
+import {
+  slugifyMarketName,
+  resolveUniqueSlug,
+} from "@/lib/market/slug";
 import type { Database } from "@/types/database";
 
 type ActionState = { error: string } | null;
@@ -22,15 +26,6 @@ function createAdminClient() {
   return createClient<Database>(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-}
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
 }
 
 export async function createMerchantAction(
@@ -80,7 +75,7 @@ export async function createMerchantAction(
   }
 
   const userId = userData.user.id;
-  const slug = `${slugify(name)}-${Date.now().toString(36)}`;
+  const slug = await resolveUniqueSlug(admin, slugifyMarketName(name));
 
   const { data: merchantData, error: merchantError } = await admin
     .from("merchants")

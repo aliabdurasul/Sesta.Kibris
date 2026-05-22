@@ -33,7 +33,8 @@ export async function setMerchantActive(
 
   log.info("admin.merchant.set_active", { merchantId, isActive });
   revalidatePath("/admin/actors");
-  revalidatePath("/merchants");
+  revalidatePath("/market");
+  revalidatePath("/");
   return { ok: true };
 }
 

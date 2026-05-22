@@ -45,6 +45,10 @@ export default function NewMerchantPage() {
               className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               placeholder="Örn: Döner King"
             />
+            <p className="mt-1.5 text-xs text-gray-500">
+              Mağaza URL&apos;si (ör. /market/doner-king) işletme adından otomatik
+              oluşturulur ve oluşturulduktan sonra değiştirilemez.
+            </p>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

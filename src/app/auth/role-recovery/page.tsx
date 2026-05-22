@@ -53,7 +53,7 @@ export default async function RoleRecoveryPage() {
 
             {/* Go to public storefront (no auth needed) */}
             <a
-              href="/merchants"
+              href="/"
               className="block w-full rounded-xl bg-gray-100 py-3 text-center text-sm font-medium text-gray-600 transition-colors hover:bg-gray-200"
             >
               Misafir Olarak Devam Et

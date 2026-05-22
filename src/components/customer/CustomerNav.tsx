@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 export function CustomerNav() {
   const pathname = usePathname();
   const items = [
-    { href: "/merchants", label: "Marketler", icon: "🏪" },
+    { href: "/#browse-markets", label: "Marketler", icon: "🏪" },
     { href: "/customer/orders", label: "Siparişlerim", icon: "📋" },
   ];
 

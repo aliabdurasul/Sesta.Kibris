@@ -25,7 +25,7 @@ export function MerchantCard({ merchant }: MerchantCardProps) {
 
   return (
     <Link
-      href={`/merchants/${merchant.slug}`}
+      href={`/market/${merchant.slug}`}
       className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md active:bg-gray-50"
     >
       <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-gray-100 text-2xl text-gray-300">

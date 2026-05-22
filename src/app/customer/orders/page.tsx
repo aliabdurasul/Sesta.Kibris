@@ -70,7 +70,7 @@ export default async function CustomerOrdersPage() {
         <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
           <p>Henüz sipariş verilmemiş.</p>
           <Link
-            href="/merchants"
+            href="/#browse-markets"
             className="mt-4 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
           >
             Marketleri keşfet

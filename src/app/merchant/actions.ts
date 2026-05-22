@@ -56,7 +56,8 @@ export async function setMerchantOpen(
 
   log.info("merchant.set_open", { merchantId, isOpen });
   revalidatePath("/merchant");
-  revalidatePath("/merchants");
+  revalidatePath("/market");
+  revalidatePath("/");
 
   const { data: row } = await supabase
     .from("merchants")
@@ -66,7 +67,7 @@ export async function setMerchantOpen(
 
   const slug = (row as { slug: string } | null)?.slug;
   if (slug) {
-    revalidatePath(`/merchants/${slug}`);
+    revalidatePath(`/market/${slug}`);
   }
 
   return { ok: true };

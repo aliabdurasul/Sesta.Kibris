@@ -1,6 +1,6 @@
 /**
  * /merchant — resolver only. Redirects to the merchant's canonical storefront slug.
- * Operational dashboard UI lives at /merchants/[slug] for owners.
+ * Operational dashboard UI lives at /market/[slug] for owners.
  */
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
@@ -29,5 +29,5 @@ export default async function MerchantRootPage() {
     );
   }
 
-  redirect(`/merchants/${merchant.slug}`);
+  redirect(`/market/${merchant.slug}`);
 }

@@ -40,7 +40,7 @@ export default function CustomerError({ error, reset }: Props) {
             Siparişlerime Dön
           </a>
           <a
-            href="/merchants"
+            href="/#browse-markets"
             className="block text-sm text-gray-400 hover:text-gray-600"
           >
             Alışverişe Devam Et →

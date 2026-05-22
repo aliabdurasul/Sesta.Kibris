@@ -25,7 +25,7 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           Market siparişinizi onayladığında hazırlanmaya başlayacak.
         </p>
         <Link
-          href="/merchants"
+          href="/#browse-markets"
           className="mt-6 inline-block rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700"
         >
           Marketlere dön
