@@ -223,6 +223,8 @@ export async function updateMerchantProfile(
 
   if (!row) return { error: "Market bulunamadı." };
 
+  const profile_address =
+    (formData.get("profile_address") as string | null)?.trim() || null;
   const description = (formData.get("description") as string | null)?.trim() || null;
   const deliveryMinRaw = formData.get("delivery_time_min") as string | null;
   const deliveryMaxRaw = formData.get("delivery_time_max") as string | null;
@@ -261,6 +263,7 @@ export async function updateMerchantProfile(
   const now = new Date().toISOString();
 
   const { error } = await updateMerchantRow(merchantId, {
+    profile_address,
     description,
     opening_hours: opening_hours as Json,
     delivery_time_min,

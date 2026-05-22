@@ -33,7 +33,7 @@ export type MerchantDisplaySource = MerchantProfileSource & {
   name: string;
   slug: string;
   category: string;
-  address?: string | null;
+  profile_address?: string | null;
   is_open?: boolean;
   is_onboarded?: boolean;
   is_demo_market?: boolean;
@@ -145,7 +145,7 @@ export function resolveMarketDisplay(
     isOnboarded: merchant.is_onboarded === true,
     isDemoMarket: merchant.is_demo_market === true,
     deliveryFeeLabel: formatDeliveryFee(merchant.delivery_fee),
-    address: merchant.address ?? null,
+    address: merchant.profile_address?.trim() || null,
   };
 }
 

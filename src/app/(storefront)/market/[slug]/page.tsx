@@ -115,7 +115,7 @@ export async function generateMetadata({ params }: PageProps) {
     slug: resolved.canonicalSlug,
     category: resolved.merchant.category,
     merchantId: resolved.merchant.id,
-    address: resolved.merchant.address,
+    address: resolveMarketDisplay(resolved.merchant).address ?? undefined,
     coverUrl: display.coverUrl,
     noindex: isOwner,
   });
@@ -223,7 +223,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
         slug={canonicalSlug}
         category={merchantForOwner.category}
         merchantId={merchantForOwner.id}
-        address={merchantForOwner.address}
+        address={display.address}
         coverUrl={display.coverUrl}
         description={display.description}
       />
@@ -274,10 +274,8 @@ export default async function MarketDetailPage({ params }: PageProps) {
               ` · ${display.openingHoursLabel}`}
             {display.deliveryFeeLabel && ` · Teslimat ${display.deliveryFeeLabel}`}
           </p>
-          {merchantForOwner.address && (
-            <p className="mt-1 text-sm text-gray-400">
-              {merchantForOwner.address}
-            </p>
+          {display.address && (
+            <p className="mt-1 text-sm text-gray-400">{display.address}</p>
           )}
           {!merchantForOwner.is_open && (
             <div className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-700 ring-1 ring-amber-200">

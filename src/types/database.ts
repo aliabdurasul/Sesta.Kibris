@@ -61,6 +61,7 @@ export interface Database {
           hybrid_assign_timeout_minutes: number;
           logo_url: string | null;
           cover_image_url: string | null;
+          profile_address: string | null;
           description: string | null;
           opening_hours: Json | null;
           delivery_time_min: number | null;

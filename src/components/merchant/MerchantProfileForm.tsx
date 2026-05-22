@@ -31,6 +31,7 @@ type MerchantProfileData = {
   logo_url: string | null;
   cover_image_url: string | null;
   description: string | null;
+  profile_address: string | null;
   opening_hours: OpeningHours;
   delivery_time_min: number | null;
   delivery_time_max: number | null;
@@ -206,6 +207,24 @@ export function MerchantProfileForm({
 
       <form action={formAction} className="space-y-4 rounded-2xl bg-white p-4 ring-1 ring-gray-100">
         <h2 className="text-sm font-semibold text-gray-900">Mağaza bilgileri</h2>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">
+            Mağaza adresi (müşterilere gösterilir)
+          </label>
+          <textarea
+            name="profile_address"
+            rows={2}
+            required
+            defaultValue={merchant.profile_address ?? ""}
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+            placeholder="Örn: Lefkoşa Merkez, Atatürk Caddesi No:12"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Yönetici kaydındaki adres müşterilere gösterilmez; yalnızca buraya
+            yazdığınız adres mağaza sayfasında görünür.
+          </p>
+        </div>
 
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-600">
