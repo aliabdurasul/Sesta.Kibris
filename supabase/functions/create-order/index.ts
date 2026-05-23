@@ -210,21 +210,72 @@ Deno.serve(async (req: Request) => {
     const productIds = items.map((i: OrderItem) => i.product_id);
     const { data: products, error: productsError } = await admin
       .from("products")
-      .select("id, name, description, price, merchant_id, is_available")
-      .in("id", productIds)
+      .select(
+        "id, product_id, name, description, price, merchant_id, is_available",
+      )
+      .in("product_id", productIds)
       .eq("merchant_id", merchant_id);
 
-    if (productsError || !products?.length) {
-      return json({ error: "Ürünler yüklenemedi." }, 500);
+    if (productsError) {
+      console.error("Product lookup error:", productsError);
+      return json(
+        {
+          error: "Ürün envanteri yüklenemedi.",
+          code: "INVENTORY_LOOKUP_FAILED",
+          detail: productsError.message,
+        },
+        500,
+      );
+    }
+
+    if (!products?.length) {
+      return json(
+        {
+          error:
+            "Sepetteki ürünler bu markette bulunamadı. Sayfayı yenileyip tekrar deneyin.",
+          code: "INVENTORY_NOT_FOUND",
+          requested_product_ids: productIds,
+        },
+        400,
+      );
+    }
+
+    const missingIds = productIds.filter(
+      (pid) => !products.some((p) => p.product_id === pid),
+    );
+    if (missingIds.length > 0) {
+      return json(
+        {
+          error: `Market envanterinde bulunmayan ürün(ler): ${missingIds.join(", ")}`,
+          code: "PRODUCT_NOT_IN_INVENTORY",
+          missing_product_ids: missingIds,
+        },
+        400,
+      );
     }
 
     for (const item of items) {
-      const product = products.find((p) => p.id === item.product_id);
+      const product = products.find((p) => p.product_id === item.product_id);
       if (!product) {
-        return json({ error: `Ürün bulunamadı: ${item.product_id}` }, 400);
+        return json(
+          {
+            error: `Ürün bulunamadı: ${item.product_id}`,
+            code: "PRODUCT_NOT_FOUND",
+          },
+          400,
+        );
       }
       if (!product.is_available) {
         return json({ error: `"${product.name}" şu an mevcut değil.` }, 400);
+      }
+      if (!product.price || product.price <= 0) {
+        return json(
+          {
+            error: `"${product.name}" için geçerli fiyat yok.`,
+            code: "INVALID_PRICE",
+          },
+          400,
+        );
       }
       if (item.quantity < 1 || item.quantity > 99) {
         return json({ error: "Geçersiz ürün adedi." }, 400);
@@ -233,7 +284,7 @@ Deno.serve(async (req: Request) => {
 
     let totalAmount = 0;
     const orderItems = items.map((item: OrderItem) => {
-      const product = products.find((p) => p.id === item.product_id)!;
+      const product = products.find((p) => p.product_id === item.product_id)!;
       const lineTotal = product.price * item.quantity;
       totalAmount += lineTotal;
       return {

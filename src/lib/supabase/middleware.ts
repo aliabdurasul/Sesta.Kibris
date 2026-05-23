@@ -24,6 +24,11 @@
  */
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  ACTIVE_ROLE_COOKIE,
+  activeRoleCookieOptions,
+  clearSessionAuxCookies,
+} from "@/lib/auth/session-cookies";
 import { supabaseFetch } from "@/lib/supabase/fetch-config";
 
 import type { Database } from "@/types/database";
@@ -87,12 +92,19 @@ export async function updateSession(
   // Stale refresh token → clear auth cookies to stop AuthApiError loops
   if (userError) {
     const msg = userError.message.toLowerCase();
-    if (
+    const code = (userError as { code?: string }).code?.toLowerCase() ?? "";
+    const isStaleSession =
+      code.includes("refresh_token") ||
       msg.includes("refresh token") ||
+      msg.includes("refresh_token_not_found") ||
       msg.includes("invalid") ||
-      userError.status === 401
-    ) {
+      userError.status === 401;
+
+    if (isStaleSession) {
       await supabase.auth.signOut();
+      clearSessionAuxCookies((name, value, options) => {
+        supabaseResponse.cookies.set(name, value, options);
+      });
     }
   }
 

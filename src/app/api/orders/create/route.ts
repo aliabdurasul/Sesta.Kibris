@@ -12,6 +12,7 @@ import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];

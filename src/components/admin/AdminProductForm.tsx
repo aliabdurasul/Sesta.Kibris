@@ -37,7 +37,7 @@ interface Props {
 const COMMON_UNITS = [
   "adet", "koli", "kg", "g", "500g", "250g", "200g", "100g", "50g",
   "L", "1L", "2L", "500ml", "330ml", "250ml", "200ml", "19L", "12L",
-  "demet", "paket", "çift", "rulo", "adet",
+  "demet", "paket", "çift", "rulo",
 ];
 
 export function AdminProductForm({

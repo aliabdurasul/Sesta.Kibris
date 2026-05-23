@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import type { Database } from "@/types/database";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
+import { setActiveRoleCookie } from "@/lib/auth/session-cookies";
 
 function isSafeInternalPath(path: string | null): path is string {
   if (!path) return false;
@@ -81,13 +82,23 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/auth/setup-password", origin));
   }
 
+  const role = (user.app_metadata as Record<string, string> | undefined)?.[
+    "role"
+  ];
+  if (role) {
+    const response = isSafeInternalPath(nextParam)
+      ? NextResponse.redirect(new URL(nextParam, origin))
+      : NextResponse.redirect(new URL(roleHomeFromJwt(role), origin));
+    setActiveRoleCookie((name, value, options) => {
+      response.cookies.set(name, value, options);
+    }, role);
+    return response;
+  }
+
   if (isSafeInternalPath(nextParam)) {
     return NextResponse.redirect(new URL(nextParam, origin));
   }
 
-  const role = (user.app_metadata as Record<string, string> | undefined)?.[
-    "role"
-  ];
-  const dest = roleHomeFromJwt(role ?? null);
+  const dest = roleHomeFromJwt(null);
   return NextResponse.redirect(new URL(dest, origin));
 }

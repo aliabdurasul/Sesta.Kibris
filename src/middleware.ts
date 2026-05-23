@@ -28,7 +28,10 @@ import {
 } from "@/lib/guest/session";
 import { isGuestAllowedPath } from "@/lib/middleware/guest-paths";
 import { roleHomeFromJwt } from "@/lib/routing/role-home";
-import { ACTIVE_ROLE_COOKIE } from "@/lib/auth/session-cookies";
+import {
+  ACTIVE_ROLE_COOKIE,
+  activeRoleCookieOptions,
+} from "@/lib/auth/session-cookies";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -166,7 +169,7 @@ export default async function middleware(request: NextRequest) {
       );
     }
     // Sync the cookie to match the valid JWT role to prevent redirect loops
-    response.cookies.set(ACTIVE_ROLE_COOKIE, userRole, { path: "/" });
+    response.cookies.set(ACTIVE_ROLE_COOKIE, userRole, activeRoleCookieOptions());
   }
 
   // ── GUARD 3: Role mismatch ───────────────────────────────────────────────

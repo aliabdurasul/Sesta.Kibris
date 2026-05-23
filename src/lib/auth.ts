@@ -12,6 +12,7 @@
  */
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { createServerClient } from "@/lib/supabase/server";
 import { roleHome } from "@/lib/routing/role-home";
 import { log } from "@/lib/logger";
@@ -172,7 +173,7 @@ export async function resolveUserRole(
  * Uses DB fallback if app_metadata.role is missing.
  * Returns null if no session OR no role can be determined.
  */
-export async function getSession(): Promise<SessionUser | null> {
+export const getSession = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -193,7 +194,7 @@ export async function getSession(): Promise<SessionUser | null> {
     merchantId: resolved.merchantId,
     courierId: resolved.courierId,
   };
-}
+});
 
 /**
  * Returns session or redirects to /auth/login.
@@ -255,19 +256,9 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
     redirect("/auth/role-recovery");
   }
 
-  // ── Stale JWT refresh ────────────────────────────────────────────────────
-  // Role came from DB fallback (JWT had no role). Refresh the session so
-  // middleware gets correct app_metadata on subsequent requests.
-  if (!jwtRole && resolved.role) {
-    if (IS_DEV) {
-      log.info("auth.require_role.stale_jwt", { role: allowedRole, path: currentPath });
-    }
-    try {
-      await supabase.auth.refreshSession();
-    } catch {
-      // Non-fatal — middleware Guard 1 covers this
-    }
-  }
+  // ── Stale JWT: rely on middleware refresh; avoid refreshSession in RSC ───
+  // refreshSession() cookie writes often no-op in Server Components and can
+  // trigger extra network calls on every layout render.
 
   // ── Same-subtree guard ─────────────────────────────────────────────────────
   // Role mismatch would normally redirect. But if the redirect target equals

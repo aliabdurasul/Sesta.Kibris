@@ -25,6 +25,14 @@ import {
   CATALOG_ALL_TAG,
   slugify,
 } from "./cache-tags";
+import { resolveProductImageUrl } from "@/lib/validation/http-url";
+
+function normalizeStoredImageUrl(
+  url: string | null | undefined,
+): string | null {
+  if (!url?.trim()) return null;
+  return resolveProductImageUrl(url) ?? url.trim();
+}
 
 // ── Products ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +108,7 @@ export async function adminCreateProduct(
     created_by: user.id,
     approved_by: user.id,
     approved_at: new Date().toISOString(),
+    image_url: normalizeStoredImageUrl(input.image_url),
   };
 
   const { data, error } = await adminSupabase
@@ -122,9 +131,15 @@ export async function adminUpdateProduct(
   update: GlobalProductUpdate,
 ): Promise<{ success: boolean; error?: string }> {
   const adminSupabase = createAdminServerClient();
+  const normalized: GlobalProductUpdate = {
+    ...update,
+    ...(update.image_url !== undefined
+      ? { image_url: normalizeStoredImageUrl(update.image_url) }
+      : {}),
+  };
   const { error } = await adminSupabase
     .from("global_products")
-    .update(update as never)
+    .update(normalized as never)
     .eq("id", id);
 
   if (error) {
