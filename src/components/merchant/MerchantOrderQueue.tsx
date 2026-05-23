@@ -12,6 +12,7 @@ import {
   merchantCanAssign,
 } from "@/lib/delivery/assignment";
 import type { DeliveryMode, Json, OrderStatus } from "@/types/database";
+import type { ActiveOrder } from "@/types/order";
 
 interface OrderItem {
   id: string;
@@ -38,7 +39,7 @@ interface MerchantCourier {
 }
 
 interface Props {
-  initialOrders: Order[];
+  initialOrders: ActiveOrder[];
   merchantId: string;
   deliveryMode: DeliveryMode;
   merchantCouriers: MerchantCourier[];

@@ -5,18 +5,10 @@
  */
 import { ProductCard } from "./ProductCard";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  is_available: boolean;
-  display_order: number;
-}
+import type { StorefrontProduct } from "@/types/catalog";
 
 interface ProductGridProps {
-  products: Product[];
+  products: StorefrontProduct[];
   merchantId: string;
   merchantSlug: string;
 }
@@ -30,7 +22,7 @@ export function ProductGrid({
     <div className="space-y-3">
       {products.map((product) => (
         <ProductCard
-          key={product.id}
+          key={product.inventoryId}
           product={product}
           merchantId={merchantId}
           merchantSlug={merchantSlug}

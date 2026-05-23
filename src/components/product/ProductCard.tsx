@@ -6,16 +6,10 @@
  */
 import Image from "next/image";
 import { AddToCartButton } from "./AddToCartButton";
+import type { StorefrontProduct } from "@/types/catalog";
 
 interface ProductCardProps {
-  product: {
-    id: string;
-    name: string;
-    description: string | null;
-    price: number;
-    image_url: string | null;
-    is_available: boolean;
-  };
+  product: StorefrontProduct;
   merchantId: string;
   merchantSlug: string;
 }
@@ -26,14 +20,14 @@ export function ProductCard({ product, merchantId, merchantSlug }: ProductCardPr
   return (
     <div
       className={`flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 ${
-        !product.is_available ? "opacity-50" : ""
+        !product.isAvailable ? "opacity-50" : ""
       }`}
     >
       {/* Product image */}
       <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
-        {product.image_url ? (
+        {product.imageUrl ? (
           <Image
-            src={product.image_url}
+            src={product.imageUrl}
             alt={product.name}
             fill
             className="object-cover"
@@ -49,6 +43,11 @@ export function ProductCard({ product, merchantId, merchantSlug }: ProductCardPr
       {/* Info */}
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-gray-900">{product.name}</h3>
+        {product.unit && (
+          <span className="mb-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+            {product.unit} {product.brand && `· ${product.brand}`}
+          </span>
+        )}
         {product.description && (
           <p className="mt-0.5 line-clamp-2 text-sm text-gray-500">
             {product.description}
@@ -62,7 +61,7 @@ export function ProductCard({ product, merchantId, merchantSlug }: ProductCardPr
             merchantSlug={merchantSlug}
           />
         </div>
-        {!product.is_available && (
+        {!product.isAvailable && (
           <span className="mt-1 block text-xs text-red-500">Şu an mevcut değil</span>
         )}
       </div>

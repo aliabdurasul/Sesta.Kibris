@@ -1,59 +1,16 @@
 /**
- * Merchant product management — /merchant/products
- * Lists all products for this merchant. Add/edit/toggle availability.
+ * Merchant Panel - Products & Inventory wrapper.
+ * Replaces old products page (Task 0.0.18).
  */
 import { getSession } from "@/lib/auth";
-import { createServerClient } from "@/lib/supabase/server";
-import { ProductManager } from "@/components/merchant/ProductManager";
+import { getMerchantInventory } from "@/lib/catalog/merchant-actions";
+import { MerchantInventoryClient } from "./MerchantInventoryClient";
 
-import type { Database } from "@/types/database";
-
-type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
-type ProductRow = Database["public"]["Tables"]["products"]["Row"];
-
-async function getMerchantProducts(userId: string) {
-  const supabase = await createServerClient();
-  const { data: merchantData } = await supabase
-    .from("merchants")
-    .select("id")
-    .or(`user_id.eq.${userId},owner_user_id.eq.${userId}`)
-    .limit(1)
-    .maybeSingle();
-
-  const merchant = merchantData as Pick<MerchantRow, "id"> | null;
-  if (!merchant) return { merchantId: null, products: [] };
-
-  const { data: productsData } = await supabase
-    .from("products")
-    .select(
-      "id, name, description, price, unit, is_available, display_order, stock_count",
-    )
-    .eq("merchant_id", merchant.id)
-    .order("display_order");
-
-  const products = (productsData ?? []) as Pick<
-    ProductRow,
-    | "id"
-    | "name"
-    | "description"
-    | "price"
-    | "unit"
-    | "is_available"
-    | "display_order"
-    | "stock_count"
-  >[];
-
-
-  return { merchantId: merchant.id, products };
-}
+export const dynamic = "force-dynamic";
 
 export default async function MerchantProductsPage() {
-  // Layout already enforces requireRole("merchant") — no second check needed.
   const session = await getSession();
-  if (!session) return null;
-  const { merchantId, products } = await getMerchantProducts(session.id);
-
-  if (!merchantId) {
+  if (!session?.merchantId) {
     return (
       <div className="py-16 text-center text-gray-400">
         <p>Market kaydınız bulunamadı.</p>
@@ -61,10 +18,23 @@ export default async function MerchantProductsPage() {
     );
   }
 
+  const inventory = await getMerchantInventory(session.merchantId);
+
   return (
     <div>
-      <h2 className="mb-4 text-lg font-bold text-gray-900">Ürün Yönetimi</h2>
-      <ProductManager initialProducts={products} merchantId={merchantId} />
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-900">Envanter Yönetimi</h2>
+        <div className="flex items-center gap-2">
+          <a
+            href="/merchant/products/suggestions"
+            className="text-sm font-medium text-blue-600 hover:underline"
+          >
+            Önerilerim
+          </a>
+        </div>
+      </div>
+
+      <MerchantInventoryClient initialInventory={inventory} merchantId={session.merchantId} />
     </div>
   );
 }

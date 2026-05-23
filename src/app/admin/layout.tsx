@@ -30,6 +30,24 @@ export default async function AdminLayout({
               >
                 Aktörler
               </a>
+              <a
+                href="/admin/catalog"
+                className="text-sm text-gray-500 hover:text-gray-800"
+              >
+                Katalog
+              </a>
+              <a
+                href="/admin/catalog/suggestions"
+                className="text-sm text-gray-500 hover:text-gray-800"
+              >
+                Öneriler
+              </a>
+              <a
+                href="/admin/catalog/categories"
+                className="text-sm text-gray-500 hover:text-gray-800"
+              >
+                Kategoriler
+              </a>
             </nav>
           </div>
           <form action="/auth/signout" method="post">

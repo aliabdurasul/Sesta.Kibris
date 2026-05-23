@@ -33,23 +33,11 @@ import type { Database } from "@/types/database";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+import { getStorefrontProducts } from "@/lib/catalog/storefront-queries";
 
-type ProductItem = Pick<
-  ProductRow,
-  | "id"
-  | "name"
-  | "description"
-  | "price"
-  | "image_url"
-  | "is_available"
-  | "display_order"
->;
+import type { ActiveOrder } from "@/types/order";
 
-type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
-type OrderItemRow = Database["public"]["Tables"]["order_items"]["Row"];
-
-async function getActiveOrders(merchantId: string) {
+async function getActiveOrders(merchantId: string): Promise<ActiveOrder[]> {
   const supabase = await createServerClient();
   const { data } = await supabase
     .from("orders")
@@ -61,43 +49,10 @@ async function getActiveOrders(merchantId: string) {
     .in("status", ["PENDING", "CONFIRMED", "READY"])
     .order("created_at", { ascending: true });
 
-  return (data ?? []) as (Pick<
-    OrderRow,
-    | "id"
-    | "status"
-    | "total_amount"
-    | "delivery_address"
-    | "customer_notes"
-    | "created_at"
-  > & {
-    order_items: Pick<
-      OrderItemRow,
-      "id" | "quantity" | "unit_price" | "product_name" | "line_total"
-    >[];
-  })[];
+  return (data ?? []) as ActiveOrder[];
 }
 
-async function getPublicProducts(merchantId: string): Promise<ProductItem[]> {
-  const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select(
-      "id, name, description, price, image_url, is_available, display_order",
-    )
-    .eq("merchant_id", merchantId)
-    .eq("is_available", true)
-    .order("display_order");
 
-  if (error) {
-    log.error("market.products.fetch", {
-      merchantId,
-      reason: error.message,
-    });
-    return [];
-  }
-
-  return (data ?? []) as ProductItem[];
-}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -220,7 +175,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const products = await getPublicProducts(merchantForOwner.id);
+  const products = await getStorefrontProducts(merchantForOwner.id);
   const display = resolveMarketDisplay(merchantForOwner);
   const whatsappUrl = merchantForOwner.whatsapp_phone
     ? buildWhatsAppUrl(merchantForOwner.whatsapp_phone)

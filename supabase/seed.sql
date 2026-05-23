@@ -17,6 +17,15 @@
 -- In local dev, Supabase allows direct inserts to auth.users
 -- ============================================================
 
+-- Admin user
+INSERT INTO auth.users (id, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, email_confirmed_at, encrypted_password, aud, role)
+VALUES
+  ('00000000-0000-0000-0000-000000000000', 'admin@example.com',
+   '{"role":"admin"}',
+   '{"full_name":"Sistem Yöneticisi"}',
+   now(), now(), now(), '$2a$10$placeholder', 'authenticated', 'authenticated')
+ON CONFLICT (id) DO NOTHING;
+
 -- Merchant users
 INSERT INTO auth.users (id, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, email_confirmed_at, encrypted_password, aud, role)
 VALUES

@@ -7,14 +7,10 @@
  */
 import { useCartStore } from "@/lib/cart-store";
 
+import type { StorefrontProduct } from "@/types/catalog";
+
 interface AddToCartButtonProps {
-  product: {
-    id: string;
-    name: string;
-    price: number;
-    image_url: string | null;
-    is_available: boolean;
-  };
+  product: StorefrontProduct;
   merchantId: string;
   merchantSlug: string;
 }
@@ -25,10 +21,10 @@ export function AddToCartButton({
   merchantSlug,
 }: AddToCartButtonProps) {
   const { items, addItem, removeItem, updateQuantity } = useCartStore();
-  const existing = items.find((i) => i.productId === product.id);
+  const existing = items.find((i) => i.productId === product.productId);
   const quantity = existing?.quantity ?? 0;
 
-  if (!product.is_available) {
+  if (!product.isAvailable) {
     return (
       <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-400">
         Mevcut değil
@@ -40,7 +36,7 @@ export function AddToCartButton({
     return (
       <div className="flex items-center gap-2">
         <button
-          onClick={() => updateQuantity(product.id, quantity - 1)}
+          onClick={() => updateQuantity(product.productId, quantity - 1)}
           className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-lg font-bold text-gray-700 hover:bg-gray-200 active:bg-gray-300"
           aria-label="Azalt"
         >
@@ -53,10 +49,10 @@ export function AddToCartButton({
           onClick={() =>
             addItem(
               {
-                productId: product.id,
+                productId: product.productId,
                 name: product.name,
                 price: product.price,
-                imageUrl: product.image_url,
+                imageUrl: product.imageUrl,
               },
               merchantId,
               merchantSlug,
@@ -76,10 +72,10 @@ export function AddToCartButton({
       onClick={() =>
         addItem(
           {
-            productId: product.id,
+            productId: product.productId,
             name: product.name,
             price: product.price,
-            imageUrl: product.image_url,
+            imageUrl: product.imageUrl,
           },
           merchantId,
           merchantSlug,
