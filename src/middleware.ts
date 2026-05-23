@@ -169,17 +169,28 @@ export default async function middleware(request: NextRequest) {
     response.cookies.set(ACTIVE_ROLE_COOKIE, userRole, { path: "/" });
   }
 
-  // ── GUARD 3: Already at destination ─────────────────────────────────────
+  // ── GUARD 3: Role mismatch ───────────────────────────────────────────────
   if (userRole !== requiredRole) {
-    const targetPath = roleHomeFromJwt(userRole);
-    if (pathname === targetPath || pathname.startsWith(targetPath + "/")) {
+    // JWT role may be stale; let the segment layout resolve via DB (requireRole).
+    if (pathMatchesProtectedSegment(pathname, requiredRole)) {
       if (IS_DEV) {
         console.log(
-          `[AUTH TRACE] middleware | GUARD2 already at home | path=${pathname} → pass through`,
+          `[AUTH TRACE] middleware | GUARD3 jwt mismatch, path matches required segment | path=${pathname} → pass through`,
         );
       }
       return response;
     }
+
+    const targetPath = roleHomeFromJwt(userRole);
+    if (pathname === targetPath || pathname.startsWith(targetPath + "/")) {
+      if (IS_DEV) {
+        console.log(
+          `[AUTH TRACE] middleware | GUARD3 already at jwt home | path=${pathname} → pass through`,
+        );
+      }
+      return response;
+    }
+
     if (IS_DEV) {
       console.log(
         `[AUTH TRACE] middleware | role mismatch | jwt=${userRole} required=${requiredRole} → ${targetPath}`,

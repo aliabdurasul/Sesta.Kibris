@@ -99,6 +99,14 @@ export async function setupAdminAction(
 
     const userId = created.user.id;
 
+    const { error: roleError } = await admin.from("user_roles").upsert(
+      { user_id: userId, role: "admin" } as never,
+      { onConflict: "user_id,role" },
+    );
+    if (roleError) {
+      log.error("setup_admin.user_roles_failed", { userId, reason: roleError.message });
+    }
+
     const after = await countAdmins();
     if (after !== 1) {
       log.warn("setup_admin.unexpected_admin_count", {

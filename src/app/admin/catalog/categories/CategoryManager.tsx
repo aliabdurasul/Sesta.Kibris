@@ -109,7 +109,7 @@ export function CategoryManager({ categories: initial, upsertAction }: Props) {
             >
               <option value="">Üst kategori yok (Ana kategori)</option>
               {topLevel.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id || c.slug} value={c.id}>{c.name}</option>
               ))}
             </select>
             <div className="flex gap-3">
@@ -169,7 +169,7 @@ export function CategoryManager({ categories: initial, upsertAction }: Props) {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {topLevel.map((c) => (
-              <React.Fragment key={c.id}>
+              <React.Fragment key={c.id || c.slug}>
                 <tr className="hover:bg-gray-50/60">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export function CategoryManager({ categories: initial, upsertAction }: Props) {
                 </tr>
                 {/* Sub-categories */}
                 {subCategories.filter((s) => s.parent_id === c.id).map((s) => (
-                  <tr key={s.id} className="bg-gray-50/40 hover:bg-gray-50">
+                  <tr key={s.id || s.slug} className="bg-gray-50/40 hover:bg-gray-50">
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2 pl-6">
                         <span className="text-gray-400">↳</span>

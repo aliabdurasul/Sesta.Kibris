@@ -11,6 +11,7 @@ import { buildMarketMetadata } from "@/lib/market/seo-metadata";
 import Image from "next/image";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function generateMetadata({ params }: PageProps) {
     category: resolved.merchant.category,
     merchantId: resolved.merchant.id,
     address: resolveMarketDisplay(resolved.merchant).address ?? undefined,
-    coverUrl: product.imageUrl ?? undefined,
+    coverUrl: sanitizeProductImageUrl(product.imageUrl) ?? undefined,
   });
 }
 
@@ -57,6 +58,7 @@ export default async function StorefrontProductPage({ params }: PageProps) {
 
   const priceComparison = await getPriceComparison(product.productId, merchant.id);
   const otherMerchants = priceComparison.filter(p => !p.isCurrentMerchant);
+  const safeImageUrl = sanitizeProductImageUrl(product.imageUrl);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -71,9 +73,9 @@ export default async function StorefrontProductPage({ params }: PageProps) {
         <div className="flex flex-col md:flex-row">
           {/* Image */}
           <div className="relative aspect-square w-full bg-gray-50 md:w-2/5 shrink-0">
-            {product.imageUrl ? (
+            {safeImageUrl ? (
               <Image
-                src={product.imageUrl}
+                src={safeImageUrl}
                 alt={product.name}
                 fill
                 className="object-contain p-4"

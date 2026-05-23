@@ -1,24 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getMarketInitials } from "@/lib/market/resolve-display";
+import { sanitizeImageSrc } from "@/lib/validation/http-url";
 import type { MarketCardMerchant } from "@/lib/merchants/list-public";
 
 export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) {
   const { display } = merchant;
   const isOpen = display.isOpen;
   const showCompletingBadge = !display.isOnboarded;
+  const safeCoverUrl = sanitizeImageSrc(display.coverUrl) ?? "/images/markets/grocery.jpg";
+  const safeLogoUrl = sanitizeImageSrc(display.logoUrl);
 
   return (
     <article className="overflow-hidden rounded-[1.125rem] bg-brand-white ring-1 ring-border">
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-app-bg">
         <Image
-          src={display.coverUrl}
+          src={safeCoverUrl}
           alt=""
           fill
           sizes="(max-width: 448px) 100vw, 448px"
           className="object-cover"
           priority={false}
-          unoptimized={display.coverUrl.startsWith("http")}
+          unoptimized={safeCoverUrl.startsWith("http")}
         />
         {showCompletingBadge && (
           <span className="absolute left-2 top-2 rounded-full bg-brand-white/90 px-2 py-0.5 text-[10px] font-semibold text-brand-navy ring-1 ring-border">
@@ -29,14 +32,14 @@ export function NearbyStoreCard({ merchant }: { merchant: MarketCardMerchant }) 
 
       <div className="px-3.5 py-3">
         <div className="flex items-start gap-2.5">
-          {display.logoUrl ? (
+          {safeLogoUrl ? (
             <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg ring-1 ring-border">
               <Image
-                src={display.logoUrl}
+                src={safeLogoUrl}
                 alt=""
                 fill
                 className="object-cover"
-                unoptimized={display.logoUrl.startsWith("http")}
+                unoptimized={safeLogoUrl.startsWith("http")}
               />
             </div>
           ) : (

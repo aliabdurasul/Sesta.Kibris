@@ -6,17 +6,7 @@ import { adminListProducts, adminListCategories } from "@/lib/catalog/admin-acti
 import { adminGetPendingSuggestionCount as getSuggCount } from "@/lib/catalog/suggestion-admin-actions";
 import Link from "next/link";
 import type { GlobalProduct, ProductCategory } from "@/types/catalog";
-
-/** Guard: only pass valid http/https URLs. Never throws. */
-function safeImage(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
-}
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
 export const dynamic = "force-dynamic";
 
@@ -134,10 +124,10 @@ export default async function AdminCatalogPage({ searchParams }: PageProps) {
                 <tr key={p.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {safeImage(p.image_url) ? (
+                      {sanitizeProductImageUrl(p.image_url) ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={safeImage(p.image_url)!}
+                          src={sanitizeProductImageUrl(p.image_url)!}
                           alt=""
                           className="h-9 w-9 rounded-lg object-cover ring-1 ring-gray-100"
                         />

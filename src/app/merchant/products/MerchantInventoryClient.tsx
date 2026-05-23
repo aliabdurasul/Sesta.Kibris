@@ -12,17 +12,7 @@ import {
   detachFromInventory,
 } from "@/lib/catalog/merchant-actions";
 import type { InventoryItemWithProduct } from "@/types/catalog";
-
-/** Guard: only pass valid http/https URLs. Never throws. */
-function safeImage(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
-}
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
 interface Props {
   initialInventory: InventoryItemWithProduct[];
@@ -142,10 +132,10 @@ export function MerchantInventoryClient({ initialInventory }: Props) {
           >
             {/* Product Info */}
             <div className="flex min-w-0 flex-1 items-center gap-3">
-               {safeImage(item.global_product.image_url) ? (
+               {sanitizeProductImageUrl(item.global_product.image_url) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={safeImage(item.global_product.image_url)!}
+                    src={sanitizeProductImageUrl(item.global_product.image_url)!}
                     alt=""
                     className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-gray-100"
                   />

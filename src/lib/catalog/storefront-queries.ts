@@ -8,6 +8,7 @@
 
 import { createServerClient } from "@/lib/supabase/server";
 import { log } from "@/lib/logger";
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 import type { StorefrontProduct, PriceComparisonEntry, GlobalProduct, ProductCategory } from "@/types/catalog";
 
 // ── Market product listing ────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export async function getStorefrontProducts(merchantId: string): Promise<Storefr
       brand: gp.brand as string | null,
       unit: gp.unit as string,
       slug: gp.slug as string,
-      imageUrl: gp.image_url as string | null,
+      imageUrl: sanitizeProductImageUrl(gp.image_url as string | null),
       tags: (gp.tags ?? []) as string[],
       categoryId: gp.category_id as string | null,
       categoryName: (gp.product_categories?.name ?? null) as string | null,
@@ -94,7 +95,7 @@ export async function getStorefrontProductBySlug(merchantId: string, productSlug
     brand: gp.brand as string | null,
     unit: gp.unit as string,
     slug: gp.slug as string,
-    imageUrl: gp.image_url as string | null,
+    imageUrl: sanitizeProductImageUrl(gp.image_url as string | null),
     tags: (gp.tags ?? []) as string[],
     categoryId: gp.category_id as string | null,
     categoryName: (gp.product_categories?.name ?? null) as string | null,

@@ -10,17 +10,7 @@
 import Image from "next/image";
 import { AddToCartButton } from "./AddToCartButton";
 import type { StorefrontProduct } from "@/types/catalog";
-
-/** Returns true only for valid http/https URLs. Never throws. */
-function isValidHttpUrl(value?: string | null): boolean {
-  if (!value) return false;
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -29,12 +19,10 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, merchantId, merchantSlug }: ProductCardProps) {
-  // Guard: skip render entirely if product data is invalid
   if (!product?.productId) return null;
 
   const priceDisplay = `${(product.price / 100).toFixed(2)} ₺`;
-  // Normalize imageUrl — only pass valid http/https URLs to next/image
-  const safeImageUrl = isValidHttpUrl(product.imageUrl) ? product.imageUrl : null;
+  const safeImageUrl = sanitizeProductImageUrl(product.imageUrl);
 
   return (
     <div

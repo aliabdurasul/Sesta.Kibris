@@ -13,6 +13,7 @@ import {
   type OpeningHours,
 } from "@/lib/market/onboarding";
 import { getMarketInitials } from "@/lib/market/resolve-display";
+import { sanitizeImageSrc } from "@/lib/validation/http-url";
 
 const DAYS = [
   { key: "mon" as const, label: "Pazartesi" },
@@ -56,6 +57,9 @@ export function MerchantProfileForm({
   const hours = parseOpeningHours(
     merchant.opening_hours as unknown as import("@/types/database").Json,
   );
+
+  const safeLogoPreview = sanitizeImageSrc(logoUrl);
+  const safeCoverPreview = sanitizeImageSrc(coverUrl);
 
   const progress = computeOnboardingProgress({
     logo_url: logoUrl,
@@ -135,10 +139,10 @@ export function MerchantProfileForm({
           <div>
             <p className="mb-2 text-xs text-gray-500">Logo</p>
             <div className="flex items-center gap-3">
-              {logoUrl ? (
+              {safeLogoPreview ? (
                 <div className="relative h-14 w-14 overflow-hidden rounded-xl ring-1 ring-gray-200">
                   <Image
-                    src={logoUrl}
+                    src={safeLogoPreview}
                     alt=""
                     fill
                     className="object-cover"
@@ -173,10 +177,10 @@ export function MerchantProfileForm({
           <div>
             <p className="mb-2 text-xs text-gray-500">Kapak görseli</p>
             <div className="space-y-2">
-              {coverUrl && (
+              {safeCoverPreview && (
                 <div className="relative aspect-[16/9] w-full max-w-[200px] overflow-hidden rounded-xl ring-1 ring-gray-200">
                   <Image
-                    src={coverUrl}
+                    src={safeCoverPreview}
                     alt=""
                     fill
                     className="object-cover"

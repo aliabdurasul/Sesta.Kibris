@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getMarketInitials } from "@/lib/market/resolve-display";
+import { sanitizeImageSrc } from "@/lib/validation/http-url";
 import type { MarketCardMerchant } from "@/lib/merchants/list-public";
 
 export type { MarketCardMerchant };
@@ -18,6 +19,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
   const { display } = merchant;
+  const safeLogoUrl = sanitizeImageSrc(display.logoUrl);
   const categoryLabel = merchant.category
     ? (CATEGORY_LABELS[merchant.category] ?? merchant.category)
     : null;
@@ -25,14 +27,14 @@ export function MarketCard({ merchant }: { merchant: MarketCardMerchant }) {
   return (
     <article className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-shadow hover:shadow-md">
       <div className="flex gap-4 p-4">
-        {display.logoUrl ? (
+        {safeLogoUrl ? (
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl ring-1 ring-gray-100">
             <Image
-              src={display.logoUrl}
+              src={safeLogoUrl}
               alt=""
               fill
               className="object-cover"
-              unoptimized={display.logoUrl.startsWith("http")}
+              unoptimized={safeLogoUrl.startsWith("http")}
             />
           </div>
         ) : (

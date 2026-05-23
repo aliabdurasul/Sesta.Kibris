@@ -28,6 +28,7 @@ import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
 import { MerchantSlugNav } from "@/components/merchant/MerchantSlugNav";
 import { MarketJsonLd } from "@/components/market/MarketJsonLd";
 import { log } from "@/lib/logger";
+import { sanitizeImageSrc } from "@/lib/validation/http-url";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -177,6 +178,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
 
   const products = await getStorefrontProducts(merchantForOwner.id);
   const display = resolveMarketDisplay(merchantForOwner);
+  const safeLogoUrl = sanitizeImageSrc(display.logoUrl);
   const whatsappUrl = merchantForOwner.whatsapp_phone
     ? buildWhatsAppUrl(merchantForOwner.whatsapp_phone)
     : null;
@@ -196,10 +198,10 @@ export default async function MarketDetailPage({ params }: PageProps) {
       <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              {display.logoUrl ? (
+              {safeLogoUrl ? (
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-gray-100">
                   <Image
-                    src={display.logoUrl}
+                    src={safeLogoUrl}
                     alt=""
                     fill
                     className="object-cover"

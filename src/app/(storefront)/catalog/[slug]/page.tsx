@@ -6,17 +6,7 @@ import { notFound } from "next/navigation";
 import { getProductBySlug, getPriceComparison } from "@/lib/catalog/storefront-queries";
 import Link from "next/link";
 import Image from "next/image";
-
-/** Guard: only pass valid http/https URLs to next/image. Never throws. */
-function safeImage(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
-}
+import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +48,9 @@ export default async function GlobalProductPage({ params }: PageProps) {
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
         <div className="flex flex-col md:flex-row">
           <div className="relative aspect-square w-full bg-gray-50 md:w-2/5 shrink-0">
-            {safeImage(product.image_url) ? (
+            {sanitizeProductImageUrl(product.image_url) ? (
               <Image
-                src={safeImage(product.image_url)!}
+                src={sanitizeProductImageUrl(product.image_url)!}
                 alt={product.name}
                 fill
                 className="object-contain p-4"

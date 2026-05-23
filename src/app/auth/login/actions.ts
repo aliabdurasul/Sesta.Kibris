@@ -59,8 +59,17 @@ export async function loginAction(
       setActiveRoleCookie((name, value, options) => {
         cookieStore.set(name, value, options);
       }, existingResolved.role);
-      if (isSafeRedirectPath(redirectTo)) redirect(redirectTo);
-      redirect(getRoleHomePath(existingResolved.role));
+      const home = getRoleHomePath(existingResolved.role);
+      if (
+        isSafeRedirectPath(redirectTo) &&
+        redirectTo !== "/auth/login" &&
+        (redirectTo === home ||
+          redirectTo.startsWith(`${home}/`) ||
+          redirectTo.startsWith("/checkout"))
+      ) {
+        redirect(redirectTo);
+      }
+      redirect(home);
     }
   }
 
@@ -124,9 +133,16 @@ export async function loginAction(
 
   // Use redirectTo if it is a safe internal path.
   // This honours ?redirectTo=/checkout from the checkout auth gate.
-  if (isSafeRedirectPath(redirectTo)) {
+  const home = getRoleHomePath(resolved.role);
+  if (
+    isSafeRedirectPath(redirectTo) &&
+    redirectTo !== "/auth/login" &&
+    (redirectTo === home ||
+      redirectTo.startsWith(`${home}/`) ||
+      redirectTo.startsWith("/checkout"))
+  ) {
     redirect(redirectTo);
   }
 
-  redirect(getRoleHomePath(resolved.role));
+  redirect(home);
 }

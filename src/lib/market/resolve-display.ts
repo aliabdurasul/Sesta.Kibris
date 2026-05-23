@@ -9,6 +9,7 @@ import {
   type MerchantProfileSource,
 } from "@/lib/market/onboarding";
 import type { Json } from "@/types/database";
+import { sanitizeImageSrc } from "@/lib/validation/http-url";
 
 export type MarketDisplay = {
   name: string;
@@ -130,11 +131,11 @@ export function resolveMarketDisplay(
   merchant: MerchantDisplaySource,
 ): MarketDisplay {
   const hours = parseOpeningHours(merchant.opening_hours);
-  const coverUrl = merchant.cover_image_url?.trim()
-    ? merchant.cover_image_url.trim()
-    : getMarketCoverImage(merchant.category, merchant.id);
+  const coverUrl =
+    sanitizeImageSrc(merchant.cover_image_url) ??
+    getMarketCoverImage(merchant.category, merchant.id);
 
-  const logoUrl = merchant.logo_url?.trim() ? merchant.logo_url.trim() : null;
+  const logoUrl = sanitizeImageSrc(merchant.logo_url);
 
   const openingHoursLabel = hasOpeningHoursData(merchant.opening_hours)
     ? formatOpeningHoursLabel(hours)
