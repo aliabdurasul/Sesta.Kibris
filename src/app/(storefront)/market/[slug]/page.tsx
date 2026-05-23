@@ -32,7 +32,6 @@ import { sanitizeImageSrc } from "@/lib/validation/http-url";
 import type { Database } from "@/types/database";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { getStorefrontProducts } from "@/lib/catalog/storefront-queries";
 

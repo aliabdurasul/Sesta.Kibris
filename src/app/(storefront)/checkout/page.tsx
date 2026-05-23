@@ -18,7 +18,6 @@ export const metadata = {
 };
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 type AddressRow = Database["public"]["Tables"]["customer_addresses"]["Row"];
 

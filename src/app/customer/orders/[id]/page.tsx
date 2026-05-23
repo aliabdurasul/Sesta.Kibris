@@ -2,7 +2,6 @@
  * Customer order tracking — /customer/orders/[id]
  */
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth";

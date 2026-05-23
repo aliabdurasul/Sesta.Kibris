@@ -26,7 +26,6 @@ import {
   productSitemapId,
   SITEMAP_CHUNK_SIZE,
   SITEMAP_ID_PRODUCTS_END,
-  SITEMAP_REVALIDATE_SECONDS,
 } from "@/lib/seo/sitemap-config";
 import {
   buildCatalogProductEntries,
@@ -41,7 +40,8 @@ import {
   getSitemapProductCategories,
 } from "@/lib/seo/sitemap-queries";
 
-export const revalidate = SITEMAP_REVALIDATE_SECONDS;
+/** ISR: regenerate sitemap at most once per hour on Vercel. */
+export const revalidate = 3600;
 
 export async function generateSitemaps() {
   const { products, marketProducts } = await getSitemapCounts();

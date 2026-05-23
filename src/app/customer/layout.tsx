@@ -3,7 +3,6 @@
  * Guards all customer routes. Role=customer required.
  */
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { requireRole } from "@/lib/auth";
 import { CustomerNav } from "@/components/customer/CustomerNav";

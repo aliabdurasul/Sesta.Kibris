@@ -1,10 +1,26 @@
 /**
  * Lean Supabase reads for sitemap generation only.
- * Uses anon server client + explicit public filters (matches storefront RLS).
+ * Uses cookieless anon client (safe at build time; public RLS data only).
  */
-import { createServerClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { supabaseFetch } from "@/lib/supabase/fetch-config";
 import { log } from "@/lib/logger";
+import type { Database } from "@/types/database";
 import { SITEMAP_CHUNK_SIZE } from "./sitemap-config";
+
+function createSitemapClient() {
+  const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+  if (!url || !anonKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
+  return createClient<Database>(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: supabaseFetch },
+  });
+}
 
 export type SitemapMerchant = {
   slug: string;
@@ -33,7 +49,7 @@ export type SitemapCounts = {
 };
 
 async function getActiveMerchantIds(): Promise<string[]> {
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
   const { data, error } = await supabase
     .from("merchants")
     .select("id")
@@ -47,7 +63,7 @@ async function getActiveMerchantIds(): Promise<string[]> {
 }
 
 export async function getSitemapCounts(): Promise<SitemapCounts> {
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
 
   const productsRes = await supabase
     .from("global_products")
@@ -84,7 +100,7 @@ export async function getSitemapCounts(): Promise<SitemapCounts> {
 }
 
 export async function getSitemapMerchants(): Promise<SitemapMerchant[]> {
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
   const { data, error } = await supabase
     .from("merchants")
     .select("slug, updated_at")
@@ -103,7 +119,7 @@ export async function getSitemapMerchants(): Promise<SitemapMerchant[]> {
 }
 
 export async function getSitemapProductCategories(): Promise<SitemapCategory[]> {
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
   const { data, error } = await supabase
     .from("product_categories")
     .select("slug, updated_at")
@@ -123,7 +139,7 @@ export async function getSitemapProductCategories(): Promise<SitemapCategory[]> 
 export async function getSitemapCatalogProductsChunk(
   chunkIndex: number,
 ): Promise<SitemapCatalogProduct[]> {
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
   const from = chunkIndex * SITEMAP_CHUNK_SIZE;
   const to = from + SITEMAP_CHUNK_SIZE - 1;
 
@@ -150,7 +166,7 @@ export async function getSitemapMarketProductsChunk(
   const merchantIds = await getActiveMerchantIds();
   if (merchantIds.length === 0) return [];
 
-  const supabase = await createServerClient();
+  const supabase = createSitemapClient();
   const from = chunkIndex * SITEMAP_CHUNK_SIZE;
   const to = from + SITEMAP_CHUNK_SIZE - 1;
 

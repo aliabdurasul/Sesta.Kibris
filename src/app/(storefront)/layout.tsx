@@ -6,7 +6,6 @@ import { HomeBottomNav } from "@/components/landing/HomeBottomNav";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export default async function StorefrontLayout({
   children,
