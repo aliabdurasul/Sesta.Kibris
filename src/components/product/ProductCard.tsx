@@ -3,10 +3,24 @@
 /**
  * Single product card.
  * Prices are in kuruş (lowest unit) — displayed as ₺.
+ *
+ * SAFETY: imageUrl is validated before passing to next/image.
+ * Invalid URLs (storage keys, base64, etc.) are treated as null → fallback UI.
  */
 import Image from "next/image";
 import { AddToCartButton } from "./AddToCartButton";
 import type { StorefrontProduct } from "@/types/catalog";
+
+/** Returns true only for valid http/https URLs. Never throws. */
+function isValidHttpUrl(value?: string | null): boolean {
+  if (!value) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -15,7 +29,12 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, merchantId, merchantSlug }: ProductCardProps) {
+  // Guard: skip render entirely if product data is invalid
+  if (!product?.productId) return null;
+
   const priceDisplay = `${(product.price / 100).toFixed(2)} ₺`;
+  // Normalize imageUrl — only pass valid http/https URLs to next/image
+  const safeImageUrl = isValidHttpUrl(product.imageUrl) ? product.imageUrl : null;
 
   return (
     <div
@@ -25,9 +44,9 @@ export function ProductCard({ product, merchantId, merchantSlug }: ProductCardPr
     >
       {/* Product image */}
       <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
-        {product.imageUrl ? (
+        {safeImageUrl ? (
           <Image
-            src={product.imageUrl}
+            src={safeImageUrl}
             alt={product.name}
             fill
             className="object-cover"

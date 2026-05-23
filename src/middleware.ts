@@ -162,13 +162,11 @@ export default async function middleware(request: NextRequest) {
   if (userRole && activeRole && userRole !== activeRole) {
     if (IS_DEV) {
       console.log(
-        `[AUTH TRACE] middleware | role cookie mismatch jwt=${userRole} cookie=${activeRole} → login`,
+        `[AUTH TRACE] middleware | role cookie mismatch jwt=${userRole} cookie=${activeRole} → syncing cookie`,
       );
     }
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/auth/login";
-    loginUrl.searchParams.set("reason", "role_changed");
-    return NextResponse.redirect(loginUrl);
+    // Sync the cookie to match the valid JWT role to prevent redirect loops
+    response.cookies.set(ACTIVE_ROLE_COOKIE, userRole, { path: "/" });
   }
 
   // ── GUARD 3: Already at destination ─────────────────────────────────────

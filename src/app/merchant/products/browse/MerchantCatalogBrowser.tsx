@@ -9,6 +9,17 @@ import { attachProductToInventory } from "@/lib/catalog/merchant-actions";
 import type { GlobalProduct, ProductCategory } from "@/types/catalog";
 import Link from "next/link";
 
+/** Guard: only pass valid http/https URLs. Never throws. */
+function safeImage(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 interface Props {
   products: GlobalProduct[];
   categories: ProductCategory[];
@@ -113,9 +124,9 @@ export function MerchantCatalogBrowser({ products, categories, existingProductId
             return (
               <div key={p.id} className={`flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 transition-colors ${isAdded ? 'ring-green-100 bg-green-50/30' : 'ring-gray-100 hover:ring-blue-100'}`}>
                 <div className="flex gap-3 mb-3 items-start">
-                  {p.image_url ? (
+                  {safeImage(p.image_url) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image_url} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-gray-100" />
+                    <img src={safeImage(p.image_url)!} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-gray-100" />
                   ) : (
                     <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-2xl">📦</div>
                   )}

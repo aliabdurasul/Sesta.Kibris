@@ -3,7 +3,7 @@
  * CategoryManager — admin UI for managing product categories.
  * Task 0.0.14
  */
-import { useState } from "react";
+import React, { useState } from "react";
 import type { ProductCategory } from "@/types/catalog";
 
 interface Props {
@@ -169,8 +169,8 @@ export function CategoryManager({ categories: initial, upsertAction }: Props) {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {topLevel.map((c) => (
-              <>
-                <tr key={c.id} className="hover:bg-gray-50/60">
+              <React.Fragment key={c.id}>
+                <tr className="hover:bg-gray-50/60">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {c.icon_url && (
@@ -226,7 +226,7 @@ export function CategoryManager({ categories: initial, upsertAction }: Props) {
                     </td>
                   </tr>
                 ))}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>

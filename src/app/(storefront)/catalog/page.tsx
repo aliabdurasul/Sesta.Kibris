@@ -9,6 +9,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
 
+/** Guard: only pass valid http/https URLs to next/image. Never throws. */
+function safeImage(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 interface PageProps {
@@ -97,9 +108,9 @@ export default async function GlobalCatalogPage({ searchParams }: PageProps) {
                   className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-gray-100 transition-all hover:shadow-md hover:ring-blue-100"
                 >
                   <div className="relative aspect-square w-full bg-gray-50">
-                    {product.image_url ? (
+                    {safeImage(product.image_url) ? (
                       <Image
-                        src={product.image_url}
+                        src={safeImage(product.image_url)!}
                         alt={product.name}
                         fill
                         className="object-contain p-4 transition-transform group-hover:scale-105"

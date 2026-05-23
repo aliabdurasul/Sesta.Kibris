@@ -49,11 +49,14 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const redirectTo = params.redirectTo ?? "";
 
   if (session) {
-    if (isSafeRedirectPath(redirectTo)) {
-      redirect(redirectTo);
+    const target = getRoleHomePath(session.role);
+    
+    if (isSafeRedirectPath(redirectTo) && redirectTo !== "/auth/login") {
+      if (redirectTo.startsWith(target) || redirectTo === "/checkout") {
+        redirect(redirectTo);
+      }
     }
 
-    const target = getRoleHomePath(session.role);
     const headersList = await headers();
     const inboundPath = headersList.get("x-pathname") ?? "/auth/login";
 

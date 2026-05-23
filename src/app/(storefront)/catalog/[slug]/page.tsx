@@ -7,6 +7,17 @@ import { getProductBySlug, getPriceComparison } from "@/lib/catalog/storefront-q
 import Link from "next/link";
 import Image from "next/image";
 
+/** Guard: only pass valid http/https URLs to next/image. Never throws. */
+function safeImage(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "http:" || u.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 interface PageProps {
@@ -47,9 +58,9 @@ export default async function GlobalProductPage({ params }: PageProps) {
       <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gray-100">
         <div className="flex flex-col md:flex-row">
           <div className="relative aspect-square w-full bg-gray-50 md:w-2/5 shrink-0">
-            {product.image_url ? (
+            {safeImage(product.image_url) ? (
               <Image
-                src={product.image_url}
+                src={safeImage(product.image_url)!}
                 alt={product.name}
                 fill
                 className="object-contain p-4"
