@@ -9,7 +9,10 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 import { getSession, getRoleHomePath } from "@/lib/auth";
-import { isSafeRedirectPath } from "@/lib/routing/safe-path";
+import {
+  isAllowedPostLoginRedirect,
+  sanitizeRedirectTo,
+} from "@/lib/routing/safe-path";
 import { userMustChangePassword } from "@/lib/auth/password-change";
 import { createServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -26,6 +29,7 @@ interface PageProps {
     registered?: string;
     redirectTo?: string;
     error?: string;
+    reason?: string;
   }>;
 }
 
@@ -46,15 +50,13 @@ export default async function LoginPage({ searchParams }: PageProps) {
   // would send us. This prevents the login page from participating in a loop
   // where the redirect target is the same as the inbound path.
   const params = await searchParams;
-  const redirectTo = params.redirectTo ?? "";
+  const redirectTo = sanitizeRedirectTo(params.redirectTo) ?? "";
 
   if (session) {
     const target = getRoleHomePath(session.role);
-    
-    if (isSafeRedirectPath(redirectTo) && redirectTo !== "/auth/login") {
-      if (redirectTo.startsWith(target) || redirectTo === "/checkout") {
-        redirect(redirectTo);
-      }
+
+    if (isAllowedPostLoginRedirect(redirectTo, target)) {
+      redirect(redirectTo);
     }
 
     const headersList = await headers();
@@ -73,6 +75,8 @@ export default async function LoginPage({ searchParams }: PageProps) {
 
   const justRegistered = params.registered === "1";
   const callbackError = params.error === "callback";
+  const sessionExpired =
+    params.reason === "session_expired" || params.reason === "role_switch";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">
@@ -84,6 +88,15 @@ export default async function LoginPage({ searchParams }: PageProps) {
           </p>
           <p className="mt-0.5 text-sm text-gray-500">Hesabınıza giriş yapın</p>
         </div>
+
+        {sessionExpired && (
+          <div
+            role="alert"
+            className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200"
+          >
+            Oturumunuz sona erdi. Lütfen tekrar giriş yapın.
+          </div>
+        )}
 
         {callbackError && (
           <div

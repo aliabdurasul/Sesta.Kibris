@@ -32,6 +32,8 @@ import {
   ACTIVE_ROLE_COOKIE,
   activeRoleCookieOptions,
 } from "@/lib/auth/session-cookies";
+import { buildLoginRedirectPath } from "@/lib/routing/safe-path";
+import { log } from "@/lib/logger";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -62,6 +64,14 @@ function isPublicPath(pathname: string): boolean {
 
 const ROOT_WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** Copy Set-Cookie headers from one response onto another (e.g. cleared auth cookies). */
+function mergeResponseCookies(from: NextResponse, to: NextResponse): NextResponse {
+  from.cookies.getAll().forEach(({ name, value }) => {
+    to.cookies.set(name, value);
+  });
+  return to;
+}
+
 /** Persist anonymous guest id when no Supabase session (checkout traceability). */
 function ensureGuestCookie(
   request: NextRequest,
@@ -89,6 +99,15 @@ export default async function middleware(request: NextRequest) {
   // Forward pathname to server components via request header.
   // updateSession uses { request: { headers } } internally — body is preserved.
   const pathnameHeader = { "x-pathname": pathname };
+
+  // Sign-out must not refresh session — avoids race with cookie clearing.
+  if (pathname === "/auth/signout") {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-pathname", pathname);
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+  }
 
   if (isPublicPath(pathname)) {
     const result = await updateSession(request, pathnameHeader);
@@ -121,13 +140,15 @@ export default async function middleware(request: NextRequest) {
     if (isGuestAllowedPath(pathname)) {
       return ensureGuestCookie(request, response, false);
     }
-    if (IS_DEV) {
-      console.log(`[AUTH TRACE] middleware | path=${pathname} | no session → /auth/login`);
-    }
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/auth/login";
-    loginUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(loginUrl);
+    const loginPath = buildLoginRedirectPath(pathname);
+    log.info("auth.middleware.redirect", {
+      from: pathname,
+      to: loginPath,
+      reason: "no_session",
+    });
+    const loginUrl = new URL(loginPath, request.url);
+    const redirectResponse = NextResponse.redirect(loginUrl);
+    return mergeResponseCookies(response, redirectResponse);
   }
 
   const userRole =
@@ -194,11 +215,11 @@ export default async function middleware(request: NextRequest) {
       return response;
     }
 
-    if (IS_DEV) {
-      console.log(
-        `[AUTH TRACE] middleware | role mismatch | jwt=${userRole} required=${requiredRole} → ${targetPath}`,
-      );
-    }
+    log.info("auth.middleware.redirect", {
+      from: pathname,
+      to: targetPath,
+      reason: "role_mismatch",
+    });
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.search = "";
     dashboardUrl.pathname = targetPath;

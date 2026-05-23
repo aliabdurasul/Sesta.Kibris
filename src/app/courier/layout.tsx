@@ -9,6 +9,7 @@
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { CourierNav } from "@/components/courier/CourierNav";
+import { SignOutForm } from "@/components/auth/SignOutForm";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
@@ -68,14 +69,9 @@ export default async function CourierLayout({
           </p>
           <p className="mt-1 text-xs text-gray-400">{session.email}</p>
           <div className="mt-6">
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200"
-              >
-                Çıkış Yap
-              </button>
-            </form>
+            <SignOutForm
+              buttonClassName="w-full rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200"
+            />
           </div>
         </div>
       </div>

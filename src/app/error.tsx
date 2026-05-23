@@ -6,6 +6,7 @@
  * Never shows raw stack traces, digest IDs, or Next.js internals.
  */
 import { useEffect } from "react";
+import { signOutAction } from "@/app/auth/signout/actions";
 
 interface Props {
   error: Error & { digest?: string };
@@ -45,7 +46,7 @@ export default function ErrorBoundary({ error, reset }: Props) {
           >
             Ana Sayfaya Dön
           </a>
-          <form action="/auth/signout" method="post">
+          <form action={signOutAction} method="post">
             <button
               type="submit"
               className="w-full rounded-xl py-2 text-sm text-gray-400 hover:text-gray-600"

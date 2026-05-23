@@ -3,6 +3,7 @@
  * Requires role=admin.
  */
 import { requireRole } from "@/lib/auth";
+import { SignOutForm } from "@/components/auth/SignOutForm";
 
 export default async function AdminLayout({
   children,
@@ -50,14 +51,11 @@ export default async function AdminLayout({
               </a>
             </nav>
           </div>
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              className="text-sm text-gray-400 hover:text-gray-600"
-            >
-              Çıkış
-            </button>
-          </form>
+          <SignOutForm
+            buttonClassName="text-sm text-gray-400 hover:text-gray-600"
+          >
+            Çıkış
+          </SignOutForm>
         </div>
       </header>
       <main className="flex-1 px-4 py-6">{children}</main>

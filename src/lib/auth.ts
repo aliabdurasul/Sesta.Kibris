@@ -15,6 +15,7 @@ import { headers } from "next/headers";
 import { cache } from "react";
 import { createServerClient } from "@/lib/supabase/server";
 import { roleHome } from "@/lib/routing/role-home";
+import { buildLoginRedirectPath } from "@/lib/routing/safe-path";
 import { log } from "@/lib/logger";
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -203,10 +204,7 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
 export async function requireSession(redirectTo?: string): Promise<SessionUser> {
   const session = await getSession();
   if (!session) {
-    const params = redirectTo
-      ? `?redirectTo=${encodeURIComponent(redirectTo)}`
-      : "";
-    redirect(`/auth/login${params}`);
+    redirect(buildLoginRedirectPath(redirectTo ?? "/"));
   }
   return session;
 }
@@ -227,12 +225,14 @@ export async function requireRole(allowedRole: UserRole): Promise<SessionUser> {
   const headersList = await headers();
   const currentPath = headersList.get("x-pathname") ?? "unknown";
 
-  // No session → login
+  // No session → login (preserve protected path only)
   if (error || !user) {
-    if (IS_DEV) {
-      log.info("auth.require_role.no_user", { role: allowedRole, path: currentPath });
-    }
-    redirect("/auth/login");
+    log.warn("auth.session.invalid", {
+      path: currentPath,
+      role: allowedRole,
+      reason: error?.message ?? "no_user",
+    });
+    redirect(buildLoginRedirectPath(currentPath, { reason: "session_expired" }));
   }
 
   const meta = user.app_metadata as Record<string, string> | undefined;
@@ -309,18 +309,12 @@ export function getRoleHomePath(role: UserRole): string {
 }
 
 /**
- * Signs out the current user.
+ * Signs out the current user (server components / actions).
+ * Prefer signOutAction from @/app/auth/signout/actions in forms.
  */
 export async function signOut(): Promise<void> {
-  const supabase = await createServerClient();
-  await supabase.auth.signOut();
-  const { cookies } = await import("next/headers");
-  const store = await cookies();
-  const { clearSessionAuxCookies } = await import("@/lib/auth/session-cookies");
-  clearSessionAuxCookies((name, value, options) => {
-    store.set(name, value, options);
-  });
-  redirect("/");
+  const { signOutAction } = await import("@/app/auth/signout/actions");
+  return signOutAction();
 }
 
 // ─── Safe context (never throws) ─────────────────────────────────────────────

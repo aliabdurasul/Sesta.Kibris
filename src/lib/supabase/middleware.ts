@@ -30,6 +30,7 @@ import {
   clearSessionAuxCookies,
 } from "@/lib/auth/session-cookies";
 import { supabaseFetch } from "@/lib/supabase/fetch-config";
+import { log } from "@/lib/logger";
 
 import type { Database } from "@/types/database";
 
@@ -89,23 +90,17 @@ export async function updateSession(
     error: userError,
   } = await supabase.auth.getUser();
 
-  // Stale refresh token → clear auth cookies to stop AuthApiError loops
+  // Invalid session → clear auth cookies; treat as logged out
   if (userError) {
-    const msg = userError.message.toLowerCase();
-    const code = (userError as { code?: string }).code?.toLowerCase() ?? "";
-    const isStaleSession =
-      code.includes("refresh_token") ||
-      msg.includes("refresh token") ||
-      msg.includes("refresh_token_not_found") ||
-      msg.includes("invalid") ||
-      userError.status === 401;
+    log.warn("auth.session.invalid", {
+      reason: userError.message,
+      code: (userError as { code?: string }).code ?? null,
+    });
 
-    if (isStaleSession) {
-      await supabase.auth.signOut();
-      clearSessionAuxCookies((name, value, options) => {
-        supabaseResponse.cookies.set(name, value, options);
-      });
-    }
+    await supabase.auth.signOut();
+    clearSessionAuxCookies((name, value, options) => {
+      supabaseResponse.cookies.set(name, value, options);
+    });
   }
 
   return {

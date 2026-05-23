@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 import { getSession, getRoleHomePath } from "@/lib/auth";
+import { sanitizeRedirectTo } from "@/lib/routing/safe-path";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "./RegisterForm";
 
@@ -25,7 +26,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   }
 
   const params = await searchParams;
-  const redirectTo = params.redirectTo ?? "";
+  const redirectTo = sanitizeRedirectTo(params.redirectTo) ?? "";
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4">

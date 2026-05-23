@@ -13,6 +13,7 @@
  * This page intentionally does NOT auto-redirect to avoid loops.
  */
 import { getSession } from "@/lib/auth";
+import { SignOutForm } from "@/components/auth/SignOutForm";
 
 export const metadata = {
   title: "Hesap Kurulumu — SestaKıbrıs",
@@ -42,14 +43,11 @@ export default async function RoleRecoveryPage() {
 
           <div className="mt-6 space-y-3">
             {/* Sign out and go back to login */}
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-              >
-                Çıkış Yap ve Tekrar Dene
-              </button>
-            </form>
+            <SignOutForm
+              buttonClassName="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              Çıkış Yap ve Tekrar Dene
+            </SignOutForm>
 
             {/* Go to public storefront (no auth needed) */}
             <a

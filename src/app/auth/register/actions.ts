@@ -22,6 +22,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { log } from "@/lib/logger";
+import { sanitizeRedirectTo } from "@/lib/routing/safe-path";
 import type { Database } from "@/types/database";
 
 type ActionState = { error: string } | null;
@@ -102,12 +103,7 @@ export async function registerAction(
     });
   }
 
-  // Preserve redirectTo so checkout flow is not broken after registration.
-  // Only forward safe internal paths (must start with /).
-  const safeRedirect =
-    redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
-      ? redirectTo
-      : null;
+  const safeRedirect = sanitizeRedirectTo(redirectTo);
 
   const loginUrl = safeRedirect
     ? `/auth/login?registered=1&redirectTo=${encodeURIComponent(safeRedirect)}`

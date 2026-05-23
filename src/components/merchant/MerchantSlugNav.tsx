@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOutAction } from "@/app/auth/signout/actions";
 
 interface Props {
   slug: string;
@@ -38,7 +39,7 @@ export function MerchantSlugNav({ slug }: Props) {
       >
         🍽️ Ürünler
       </Link>
-      <form action="/auth/signout" method="post" className="ml-auto">
+      <form action={signOutAction} method="post" className="ml-auto">
         <button
           type="submit"
           className="rounded-lg px-3 py-2 text-sm text-gray-400 hover:text-gray-600"
