@@ -1,14 +1,30 @@
 import type { MetadataRoute } from "next";
-import { env } from "@/lib/env";
+import { getSiteUrl } from "@/lib/site-config";
 
+/**
+ * robots.txt — allow public storefront; block dashboards and auth.
+ * Sitemap index is served at /sitemap.xml (Next.js MetadataRoute).
+ */
 export default function robots(): MetadataRoute.Robots {
-  const base = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const base = getSiteUrl();
 
   return {
     rules: {
       userAgent: "*",
       allow: "/",
+      disallow: [
+        "/admin/",
+        "/merchant/",
+        "/courier/",
+        "/customer/",
+        "/auth/",
+        "/api/",
+        "/setup-admin",
+        "/staff",
+        "/offline",
+      ],
     },
     sitemap: `${base}/sitemap.xml`,
+    host: base,
   };
 }

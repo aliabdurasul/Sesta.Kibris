@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { buildAbsoluteUrl, toAbsoluteMediaUrl } from "@/lib/site-config";
 import { getMarketCoverImage } from "@/lib/landing/market-images";
 
 type MarketJsonLdProps = {
@@ -20,13 +20,13 @@ export function MarketJsonLd({
   coverUrl,
   description: customDescription,
 }: MarketJsonLdProps) {
-  const url = `${env.NEXT_PUBLIC_APP_URL}/market/${slug}`;
+  const url = buildAbsoluteUrl(`/market/${slug}`);
   const description =
     customDescription?.trim() ||
     `${name} üzerinden taze ürünler, hızlı teslimat ve güvenli ödeme ile online market alışverişi yapın.`;
-  const image = coverUrl?.startsWith("http")
-    ? coverUrl
-    : `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
+  const image =
+    toAbsoluteMediaUrl(coverUrl) ||
+    buildAbsoluteUrl(getMarketCoverImage(category, merchantId));
 
   const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",

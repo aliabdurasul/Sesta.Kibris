@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { SITE_URL } from "@/lib/site-config";
 import "./globals.css";
 
 const inter = Inter({
@@ -12,9 +13,13 @@ const inter = Inter({
 const TAGLINE = "Kıbrıs'ın günlük yaşam uygulaması";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: `SestaKıbrıs — ${TAGLINE}`,
   description:
     "Market, su, tüp ve yerel dükkan siparişi — hızlı teslimat, güvenli ödeme.",
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -26,6 +31,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "SestaKıbrıs",
     description: TAGLINE,
+    url: SITE_URL,
     type: "website",
     locale: "tr_TR",
     siteName: "SestaKıbrıs",

@@ -1,43 +1,91 @@
+/**
+ * Dynamic sitemap — split across multiple XML files when the catalog grows.
+ *
+ * URL map (canonical public routes):
+ *   /                          homepage
+ *   /?category=grocery         browse category (markets)
+ *   /catalog                   global catalog index
+ *   /catalog?category=sut-yumurta  product category filter
+ *   /catalog/[slug]            global product (canonical product URL)
+ *   /market/[slug]             merchant / market page
+ *   /market/[slug]/product/[productSlug]  product at merchant
+ *
+ * URLs use NEXT_PUBLIC_SITE_URL (production: https://www.sestakibris.com).
+ *
+ * Caching: `revalidate` enables ISR (~1h). Purge via redeploy or
+ * `revalidatePath('/sitemap.xml')` after bulk catalog changes.
+ *
+ * Scale: `generateSitemaps()` adds chunked files (5k URLs each) for products.
+ */
 import type { MetadataRoute } from "next";
-import { env } from "@/lib/env";
-import { getPublicMerchants } from "@/lib/merchants/list-public";
-import { getGlobalCatalog } from "@/lib/catalog/storefront-queries";
+import {
+  marketProductChunkIndex,
+  marketProductSitemapId,
+  parseSitemapId,
+  productChunkIndex,
+  productSitemapId,
+  SITEMAP_CHUNK_SIZE,
+  SITEMAP_ID_PRODUCTS_END,
+  SITEMAP_REVALIDATE_SECONDS,
+} from "@/lib/seo/sitemap-config";
+import {
+  buildCatalogProductEntries,
+  buildCoreSitemapEntries,
+  buildMarketProductEntries,
+} from "@/lib/seo/sitemap-builders";
+import {
+  getSitemapCatalogProductsChunk,
+  getSitemapCounts,
+  getSitemapMarketProductsChunk,
+  getSitemapMerchants,
+  getSitemapProductCategories,
+} from "@/lib/seo/sitemap-queries";
 
-export const dynamic = "force-dynamic";
+export const revalidate = SITEMAP_REVALIDATE_SECONDS;
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  const { merchants } = await getPublicMerchants();
+export async function generateSitemaps() {
+  const { products, marketProducts } = await getSitemapCounts();
 
-  const marketEntries: MetadataRoute.Sitemap = merchants.map((m) => ({
-    url: `${base}/market/${m.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "daily",
-    priority: 0.8,
-  }));
+  const sitemaps: { id: number }[] = [{ id: 0 }];
 
-  const { products } = await getGlobalCatalog({ pageSize: 500 });
-  const catalogEntries: MetadataRoute.Sitemap = products.map((p) => ({
-    url: `${base}/catalog/${p.slug}`,
-    lastModified: new Date(p.updated_at),
-    changeFrequency: "weekly",
-    priority: 0.6,
-  }));
+  const productChunks = Math.ceil(products / SITEMAP_CHUNK_SIZE);
+  for (let i = 0; i < productChunks; i++) {
+    const id = productSitemapId(i);
+    if (id > SITEMAP_ID_PRODUCTS_END) break;
+    sitemaps.push({ id });
+  }
 
-  return [
-    {
-      url: base,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 1,
-    },
-    {
-      url: `${base}/catalog`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    ...marketEntries,
-    ...catalogEntries,
-  ];
+  const marketChunks = Math.ceil(marketProducts / SITEMAP_CHUNK_SIZE);
+  for (let i = 0; i < marketChunks; i++) {
+    sitemaps.push({ id: marketProductSitemapId(i) });
+  }
+
+  return sitemaps;
+}
+
+export default async function sitemap(props: {
+  id: number;
+}): Promise<MetadataRoute.Sitemap> {
+  const { id } = props;
+  const kind = parseSitemapId(id);
+
+  if (kind === "core") {
+    const [merchants, productCategories] = await Promise.all([
+      getSitemapMerchants(),
+      getSitemapProductCategories(),
+    ]);
+    return buildCoreSitemapEntries({ merchants, productCategories });
+  }
+
+  if (kind === "products") {
+    const products = await getSitemapCatalogProductsChunk(
+      productChunkIndex(id),
+    );
+    return buildCatalogProductEntries(products);
+  }
+
+  const marketProducts = await getSitemapMarketProductsChunk(
+    marketProductChunkIndex(id),
+  );
+  return buildMarketProductEntries(marketProducts);
 }

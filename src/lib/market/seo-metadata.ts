@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { env } from "@/lib/env";
+import { buildAbsoluteUrl, toAbsoluteMediaUrl } from "@/lib/site-config";
 import { getMarketCoverImage } from "@/lib/landing/market-images";
 
 export type MarketSeoInput = {
@@ -22,10 +22,10 @@ export function buildMarketMetadata(input: MarketSeoInput): Metadata {
     "online grocery",
     "local delivery",
   ];
-  const canonical = `${env.NEXT_PUBLIC_APP_URL}/market/${slug}`;
-  const imageUrl = coverUrl?.startsWith("http")
-    ? coverUrl
-    : `${env.NEXT_PUBLIC_APP_URL}${getMarketCoverImage(category, merchantId)}`;
+  const canonical = buildAbsoluteUrl(`/market/${slug}`);
+  const imageUrl =
+    toAbsoluteMediaUrl(coverUrl) ||
+    buildAbsoluteUrl(getMarketCoverImage(category, merchantId));
 
   return {
     title,

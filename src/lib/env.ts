@@ -3,6 +3,7 @@
  * Fails loudly if required variables are missing.
  * Import this in server-side code to access typed env vars.
  */
+import { getSiteUrl } from "@/lib/site-config";
 
 function requireEnv(key: string): string {
   const value = process.env[key];
@@ -16,10 +17,15 @@ function requireEnv(key: string): string {
 }
 
 // Public vars (safe for client-side usage)
+const publicSiteUrl = getSiteUrl();
+
 export const env = {
   NEXT_PUBLIC_SUPABASE_URL: requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  NEXT_PUBLIC_APP_URL: process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000",
+  /** Canonical public origin — use for SEO; set NEXT_PUBLIC_SITE_URL on Vercel. */
+  NEXT_PUBLIC_SITE_URL: publicSiteUrl,
+  /** @deprecated Use NEXT_PUBLIC_SITE_URL; kept for backward compatibility. */
+  NEXT_PUBLIC_APP_URL: publicSiteUrl,
   NEXT_PUBLIC_APP_ENV: process.env["NEXT_PUBLIC_APP_ENV"] ?? "development",
 } as const;
 
