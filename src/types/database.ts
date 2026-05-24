@@ -209,6 +209,7 @@ export interface Database {
           customer_notes: string | null;
           merchant_notes: string | null;
           guest_user_id: string | null;
+          guest_token: string | null;
           guest_name: string | null;
           guest_phone: string | null;
           guest_email: string | null;

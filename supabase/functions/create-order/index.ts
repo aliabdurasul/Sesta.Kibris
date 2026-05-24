@@ -31,6 +31,7 @@ interface RequestBody {
   notes?: string | null;
   authenticated_user_id?: string | null;
   guest_user_id?: string | null;
+  guest_token?: string | null;
   guest_name?: string | null;
   guest_phone?: string | null;
   guest_email?: string | null;
@@ -167,16 +168,26 @@ Deno.serve(async (req: Request) => {
 
     let customerId: string | null = null;
     let guestUserId: string | null = null;
+    let guestToken: string | null = null;
     let guestName: string | null = null;
     let guestPhone: string | null = null;
 
     const uuidRe =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const guestTokenRe =
+      /^sk_guest_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
     if (isGuest) {
       guestUserId = body.guest_user_id?.trim() ?? null;
+      guestToken = body.guest_token?.trim() ?? null;
       guestName = body.guest_name?.trim() ?? null;
       guestPhone = body.guest_phone?.trim() ?? null;
+      if (!guestToken || !guestTokenRe.test(guestToken)) {
+        return json(
+          { error: "Geçersiz misafir anahtarı. Sayfayı yenileyin.", code: "INVALID_GUEST_TOKEN" },
+          400,
+        );
+      }
       if (!guestUserId || !uuidRe.test(guestUserId)) {
         return json(
           { error: "Geçersiz misafir oturumu. Sayfayı yenileyin.", code: "INVALID_GUEST_SESSION" },
@@ -189,6 +200,13 @@ Deno.serve(async (req: Request) => {
             error: "Misafir sipariş için ad ve telefon zorunludur.",
             code: "GUEST_FIELDS_REQUIRED",
           },
+          400,
+        );
+      }
+      guestPhone = guestPhone.replace(/[^\d+]/g, "").slice(0, 20);
+      if (guestPhone.length < 8) {
+        return json(
+          { error: "Geçerli bir telefon numarası girin.", code: "INVALID_PHONE" },
           400,
         );
       }
@@ -424,6 +442,7 @@ Deno.serve(async (req: Request) => {
         delivery_address: delivery_address,
         customer_notes: customerNotes,
         guest_user_id: guestUserId,
+        guest_token: guestToken,
         guest_name: guestName,
         guest_phone: guestPhone,
         guest_email: body.guest_email?.trim() || null,

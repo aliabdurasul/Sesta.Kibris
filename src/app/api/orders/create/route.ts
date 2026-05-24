@@ -10,6 +10,7 @@ import { resolveGuestUserId } from "@/lib/guest/server";
 import { guestCookieOptions } from "@/lib/guest/session";
 import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
 import { validateCreateOrderBody } from "@/lib/orders/validate-create-payload";
+import { isValidGuestToken } from "@/lib/guest/token";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -93,6 +94,25 @@ export async function POST(request: NextRequest) {
   } else {
     authMode = "guest";
     body["guest_user_id"] = guestUserId;
+
+    const guestToken =
+      typeof rawBody["guest_token"] === "string"
+        ? rawBody["guest_token"].trim()
+        : "";
+    if (!isValidGuestToken(guestToken)) {
+      log.warn("order.create.validation_failed", { code: "INVALID_GUEST_TOKEN" });
+      return NextResponse.json(
+        {
+          error: "Misafir oturumu geçersiz. Sayfayı yenileyip tekrar deneyin.",
+          code: "INVALID_GUEST_TOKEN",
+          authMode,
+        },
+        { status: 400 },
+      );
+    }
+    body["guest_token"] = guestToken;
+    delete body["guest_email"];
+
     if (!body["guest_name"] || !body["guest_phone"]) {
       log.warn("order.create.validation_failed", {
         code: "GUEST_FIELDS_REQUIRED",
@@ -112,6 +132,7 @@ export async function POST(request: NextRequest) {
   log.info("order.create.proxy", {
     authMode,
     guestUserId: authMode === "guest" ? guestUserId : null,
+    guestToken: authMode === "guest" ? body["guest_token"] : null,
     userId: userId ?? null,
     merchantId: validated.payload.merchant_id,
     productIds: validated.payload.items.map((i) => i.product_id),
@@ -202,6 +223,7 @@ export async function POST(request: NextRequest) {
       ...payload,
       authMode,
       order: orderId ? { id: orderId } : undefined,
+      guest_token: authMode === "guest" ? body["guest_token"] : undefined,
     },
     { status: edgeRes.status },
   );

@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Guest checkout — no authentication required.
- * POSTs to create-order with guest_name + guest_phone (no JWT).
+ * Fast guest checkout — name, phone, address only. No account required.
+ * Uses sk_guest_* token in localStorage for order tracking.
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,18 +10,16 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useCartStore } from "@/lib/cart-store";
+import {
+  getOrCreateGuestToken,
+  rememberGuestOrder,
+} from "@/lib/guest/token-client";
+import { sanitizeGuestPhone } from "@/lib/guest/token";
 
 const guestSchema = z.object({
   guestName: z.string().min(2, "Ad soyad zorunlu"),
   guestPhone: z.string().min(8, "Telefon zorunlu"),
-  guestEmail: z
-    .string()
-    .optional()
-    .refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), {
-      message: "Geçerli e-posta girin",
-    }),
-  fullAddress: z.string().min(10, "Adres en az 10 karakter olmalı"),
-  district: z.string().min(2, "Mahalle / bölge zorunlu"),
+  fullAddress: z.string().min(8, "Teslimat adresi zorunlu"),
   notes: z.string().optional(),
 });
 
@@ -55,7 +53,7 @@ export function GuestCheckoutForm() {
   if (items.length === 0) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
-        <p className="text-lg">Sepetiniz boş — haydi alışverişe!</p>
+        <p className="text-lg">Sepetiniz boş</p>
         <a
           href="/#browse-markets"
           className="mt-4 inline-block text-sm font-medium text-blue-600 underline-offset-4 hover:underline"
@@ -73,20 +71,21 @@ export function GuestCheckoutForm() {
     setServerError(null);
 
     try {
+      const guestToken = getOrCreateGuestToken();
       const body = {
         merchant_id: merchantId,
+        guest_token: guestToken,
         items: items.map((i) => ({
           product_id: i.productId,
           quantity: i.quantity,
         })),
         delivery_address: {
-          full_address: data.fullAddress,
-          district: data.district,
+          full_address: data.fullAddress.trim(),
+          district: "Genel",
         },
-        customer_notes: data.notes ?? null,
+        customer_notes: data.notes?.trim() || null,
         guest_name: data.guestName.trim(),
-        guest_phone: data.guestPhone.trim(),
-        guest_email: data.guestEmail?.trim() || null,
+        guest_phone: sanitizeGuestPhone(data.guestPhone),
       };
 
       const res = await fetch("/api/orders/create", {
@@ -96,14 +95,18 @@ export function GuestCheckoutForm() {
         body: JSON.stringify(body),
       });
 
-      const json = (await res.json()) as { order_id?: string; error?: string };
+      const json = (await res.json()) as {
+        order_id?: string;
+        error?: string;
+      };
 
       if (!res.ok || !json.order_id) {
         throw new Error(json.error ?? "Sipariş oluşturulamadı.");
       }
 
       clearCart();
-      router.push(`/checkout/success?order=${json.order_id}`);
+      rememberGuestOrder(json.order_id);
+      router.push(`/order/${json.order_id}`);
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Beklenmedik bir hata oluştu.",
@@ -114,8 +117,8 @@ export function GuestCheckoutForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      <div className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800 ring-1 ring-blue-200">
-        Misafir olarak sipariş veriyorsunuz — hesap gerekmez.
+      <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+        Hesap gerekmez — 1 dakikada sipariş verin.
       </div>
 
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
@@ -133,34 +136,26 @@ export function GuestCheckoutForm() {
           ))}
         </ul>
         <div className="mt-3 flex justify-between border-t pt-3 font-bold">
-          <span>Toplam (tahmini)</span>
+          <span>Toplam</span>
           <span>{(total / 100).toFixed(2)} ₺</span>
         </div>
       </div>
 
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 space-y-3">
-        <h2 className="font-semibold text-gray-900">İletişim</h2>
+        <h2 className="font-semibold text-gray-900">Teslimat Bilgileri</h2>
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Ad Soyad *
           </label>
           <input
             {...register("guestName")}
+            autoComplete="name"
             className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+            placeholder="Adınız Soyadınız"
           />
           {errors.guestName && (
             <p className="mt-1 text-xs text-red-500">{errors.guestName.message}</p>
           )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            E-posta (opsiyonel)
-          </label>
-          <input
-            {...register("guestEmail")}
-            type="email"
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
-          />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">
@@ -169,7 +164,9 @@ export function GuestCheckoutForm() {
           <input
             {...register("guestPhone")}
             type="tel"
+            autoComplete="tel"
             className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+            placeholder="05xx xxx xx xx"
           />
           {errors.guestPhone && (
             <p className="mt-1 text-xs text-red-500">{errors.guestPhone.message}</p>
@@ -177,29 +174,19 @@ export function GuestCheckoutForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Adres *
+            Teslimat Adresi *
           </label>
           <textarea
             {...register("fullAddress")}
             rows={3}
+            autoComplete="street-address"
             className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
+            placeholder="Mahalle, sokak, bina no, daire"
           />
           {errors.fullAddress && (
             <p className="mt-1 text-xs text-red-500">
               {errors.fullAddress.message}
             </p>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Mahalle / Bölge *
-          </label>
-          <input
-            {...register("district")}
-            className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm"
-          />
-          {errors.district && (
-            <p className="mt-1 text-xs text-red-500">{errors.district.message}</p>
           )}
         </div>
         <div>
@@ -227,12 +214,15 @@ export function GuestCheckoutForm() {
         disabled={submitting}
         className="w-full rounded-2xl bg-blue-600 py-4 text-base font-bold text-white disabled:opacity-60"
       >
-        {submitting ? "Gönderiliyor..." : "Misafir Sipariş Ver"}
+        {submitting ? "Gönderiliyor..." : "Siparişi Ver"}
       </button>
 
       <p className="text-center text-sm text-gray-500">
         Hesabınız var mı?{" "}
-        <a href="/auth/login?redirectTo=/checkout" className="text-blue-600 hover:underline">
+        <a
+          href="/auth/login?redirectTo=/checkout"
+          className="text-blue-600 hover:underline"
+        >
           Giriş yapın
         </a>
       </p>

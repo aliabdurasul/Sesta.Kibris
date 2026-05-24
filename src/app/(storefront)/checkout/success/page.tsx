@@ -25,10 +25,10 @@ export default async function CheckoutSuccessPage({ searchParams }: PageProps) {
           Market siparişinizi onayladığında hazırlanmaya başlayacak.
         </p>
         <Link
-          href="/#browse-markets"
+          href={orderId ? `/order/${orderId}` : "/orders/guest"}
           className="mt-6 inline-block rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700"
         >
-          Marketlere dön
+          Siparişi takip et
         </Link>
       </div>
     </main>

@@ -2,6 +2,8 @@
 export const GUEST_ALLOWED_PREFIXES = [
   "/checkout",
   "/cart",
+  "/order",
+  "/orders/guest",
   "/payment-init",
   "/api/orders",
   "/api/checkout",
