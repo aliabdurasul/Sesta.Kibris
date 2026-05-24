@@ -47,10 +47,40 @@ export type GuestOrderFetchResult =
   | { status: "token_mismatch" }
   | { status: "auth_required" };
 
+/** Ensures orders.guest_token is set (edge may omit it on stale deploy). */
+export async function persistGuestOrderToken(
+  orderId: string,
+  guestToken: string,
+): Promise<boolean> {
+  if (!isValidOrderId(orderId) || !isValidGuestToken(guestToken)) {
+    return false;
+  }
+
+  const admin = createAdminServerClient();
+  const normalized = normalizeGuestToken(guestToken);
+  const { error } = await admin
+    .from("orders")
+    .update({ guest_token: normalized } as never)
+    .eq("id", orderId)
+    .is("customer_id", null);
+
+  if (error) {
+    log.error("guest.order.token_persist_failed", {
+      orderId,
+      reason: error.message,
+      code: error.code,
+    });
+    return false;
+  }
+
+  return true;
+}
+
 export async function fetchOrderForTracking(
   orderId: string,
   guestToken: string | null,
   authenticatedUserId: string | null,
+  guestUserIdFromCookie: string | null = null,
 ): Promise<GuestOrderFetchResult> {
   if (!isValidOrderId(orderId)) {
     return { status: "not_found" };
@@ -62,7 +92,7 @@ export async function fetchOrderForTracking(
     .select(
       `
       id, status, total_amount, delivery_address, customer_notes, created_at,
-      guest_name, guest_phone, guest_token, customer_id,
+      guest_name, guest_phone, guest_token, guest_user_id, customer_id,
       ${ORDER_MERCHANT_NAME_PHONE},
       order_items(id, quantity, unit_price, product_name, line_total),
       order_status_log(id, to_status, from_status, note, created_at, actor_role)
@@ -84,6 +114,7 @@ export async function fetchOrderForTracking(
 
   const row = data as GuestOrderDetail & {
     guest_token: string | null;
+    guest_user_id: string | null;
     customer_id: string | null;
   };
 
@@ -101,6 +132,20 @@ export async function fetchOrderForTracking(
 
   const stored = row.guest_token?.trim() ?? "";
   if (!stored) {
+    const cookieMatchesOrder =
+      guestUserIdFromCookie &&
+      row.guest_user_id &&
+      guestUserIdFromCookie === row.guest_user_id;
+
+    if (cookieMatchesOrder) {
+      const backfilled = await persistGuestOrderToken(orderId, guestToken);
+      if (backfilled) {
+        log.info("guest.order.token_backfilled", { orderId });
+      }
+      const { guest_token: _t, guest_user_id: _g, customer_id: _c, ...order } = row;
+      return { status: "ok", order: order as GuestOrderDetail };
+    }
+
     log.warn("guest.order.missing_db_token", { orderId });
     return { status: "token_mismatch" };
   }

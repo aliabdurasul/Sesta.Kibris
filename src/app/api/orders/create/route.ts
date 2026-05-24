@@ -11,6 +11,7 @@ import { guestCookieOptions } from "@/lib/guest/session";
 import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
 import { validateCreateOrderBody } from "@/lib/orders/validate-create-payload";
 import { isValidGuestToken, normalizeGuestToken } from "@/lib/guest/token";
+import { persistGuestOrderToken } from "@/lib/orders/fetch-guest-order";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -208,6 +209,15 @@ export async function POST(request: NextRequest) {
 
   const orderId =
     typeof payload["order_id"] === "string" ? payload["order_id"] : null;
+
+  if (authMode === "guest" && orderId && typeof body["guest_token"] === "string") {
+    const persisted = await persistGuestOrderToken(orderId, body["guest_token"]);
+    if (persisted) {
+      log.info("order.create.guest_token_persisted", { orderId });
+    } else {
+      log.warn("order.create.guest_token_persist_failed", { orderId });
+    }
+  }
 
   log.info("order.create.success", {
     authMode,

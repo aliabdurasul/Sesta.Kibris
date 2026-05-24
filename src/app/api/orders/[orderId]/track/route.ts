@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { getGuestUserIdFromCookies } from "@/lib/guest/server";
 import { fetchOrderForTracking } from "@/lib/orders/fetch-guest-order";
 import {
   GUEST_TOKEN_HEADER,
@@ -54,10 +55,13 @@ export async function GET(
     }
   }
 
+  const guestUserIdFromCookie = await getGuestUserIdFromCookies();
+
   const result = await fetchOrderForTracking(
     orderId,
     guestToken,
     authenticatedUserId,
+    guestUserIdFromCookie,
   );
 
   if (result.status === "ok") {
