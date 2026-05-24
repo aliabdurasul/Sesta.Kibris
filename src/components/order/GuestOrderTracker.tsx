@@ -10,11 +10,12 @@ import {
 } from "@/lib/guest/token-client";
 import { isValidGuestToken } from "@/lib/guest/token";
 import {
-  ORDER_STATUS_ICONS,
   ORDER_STATUS_LABELS,
   orderDeliveryEstimate,
 } from "@/lib/orders/order-status-labels";
+import { OrderStatusTimeline } from "@/components/customer/OrderStatusTimeline";
 import { SoftSignupCard } from "@/components/order/SoftSignupCard";
+import { StatusChip } from "@/components/ui/StatusChip";
 import type { GuestOrderDetail } from "@/lib/orders/fetch-guest-order";
 
 interface Props {
@@ -120,21 +121,15 @@ export function GuestOrderTracker({ orderId }: Props) {
     <div className="space-y-4">
       <div
         className={`rounded-2xl p-5 shadow-sm ring-1 ${
-          isActive ? "bg-blue-50 ring-blue-200" : "bg-white ring-gray-100"
+          isActive ? "bg-accent-soft ring-accent/30" : "bg-brand-white ring-border"
         }`}
       >
-        <div className="flex items-center gap-3">
-          <span className="text-4xl">
-            {ORDER_STATUS_ICONS[order.status] ?? "📦"}
-          </span>
-          <div>
-            <p className="text-sm text-gray-500">Sipariş Durumu</p>
-            <p className="text-lg font-bold text-gray-900">
-              {ORDER_STATUS_LABELS[order.status] ?? order.status}
-            </p>
-          </div>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-text-muted">Sipariş Durumu</p>
+          <StatusChip status={order.status} />
         </div>
-        <p className="mt-3 text-sm text-gray-600">
+        <OrderStatusTimeline status={order.status} />
+        <p className="mt-4 text-sm text-text-secondary">
           {orderDeliveryEstimate(order.status)}
         </p>
         <p className="mt-2 text-xs text-gray-400">

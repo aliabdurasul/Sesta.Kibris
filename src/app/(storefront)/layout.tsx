@@ -1,8 +1,7 @@
 /**
- * Public storefront layout — home uses full mobile chrome; sub-pages get padding via CSS.
+ * Customer marketplace layout — mobile-first, max 480px, bottom nav on all pages.
  */
-import { CartBar } from "@/components/cart/CartBar";
-import { HomeBottomNav } from "@/components/landing/HomeBottomNav";
+import { CustomerShell } from "@/components/layouts/CustomerShell";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +11,10 @@ export default async function StorefrontLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await getSession();
+  const session = await getSession();
+  const ordersHref = session
+    ? "/customer/orders"
+    : "/orders/guest";
 
-  return (
-    <div className="min-h-screen bg-app-bg font-sans text-text-primary">
-      <main>{children}</main>
-      <HomeBottomNav />
-      <CartBar hideOnHome />
-    </div>
-  );
+  return <CustomerShell ordersHref={ordersHref}>{children}</CustomerShell>;
 }

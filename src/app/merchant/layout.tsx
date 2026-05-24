@@ -9,8 +9,9 @@
  */
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { MerchantNav } from "@/components/merchant/MerchantNav";
+import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { MerchantOpenToggle } from "@/components/merchant/MerchantOpenToggle";
+import { merchantNavItems } from "@/lib/ui/nav-config";
 import { SignOutForm } from "@/components/auth/SignOutForm";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
@@ -19,11 +20,14 @@ type MerchantRow = Database["public"]["Tables"]["merchants"]["Row"];
 
 async function getMerchantData(
   userId: string,
-): Promise<Pick<MerchantRow, "id" | "name" | "is_open" | "is_active"> | null> {
+): Promise<Pick<
+  MerchantRow,
+  "id" | "name" | "slug" | "is_open" | "is_active"
+> | null> {
   const supabase = await createServerClient();
   const { data, error } = await supabase
     .from("merchants")
-    .select("id, name, is_open, is_active")
+    .select("id, name, slug, is_open, is_active")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -33,7 +37,7 @@ async function getMerchantData(
 
   return (data as Pick<
     MerchantRow,
-    "id" | "name" | "is_open" | "is_active"
+    "id" | "name" | "slug" | "is_open" | "is_active"
   > | null);
 }
 
@@ -73,21 +77,18 @@ export default async function MerchantLayout({
   log.info("merchant.layout.ok", { userId: session.id, merchantId: merchant.id });
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400">Market Paneli</p>
-            <h1 className="font-bold text-gray-900">{merchant.name}</h1>
-          </div>
-          <MerchantOpenToggle
-            isOpen={merchant.is_open}
-            isActive={merchant.is_active}
-          />
-        </div>
-      </header>
-      <main className="flex-1 px-4 pb-24 pt-4">{children}</main>
-      <MerchantNav />
-    </div>
+    <DashboardShell
+      title={merchant.name}
+      subtitle="Market Paneli"
+      navItems={merchantNavItems(merchant.slug)}
+      headerActions={
+        <MerchantOpenToggle
+          isOpen={merchant.is_open}
+          isActive={merchant.is_active}
+        />
+      }
+    >
+      {children}
+    </DashboardShell>
   );
 }
