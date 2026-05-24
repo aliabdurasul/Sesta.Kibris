@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { getCategoryLabel } from "@/lib/landing/categories";
-import { AdaptiveGrid } from "@/components/adaptive/AdaptiveGrid";
 import { NearbyStoreCard } from "@/components/landing/NearbyStoreCard";
 import type { MarketCardMerchant } from "@/components/landing/MarketCard";
 
@@ -55,11 +54,11 @@ export function MarketBrowseSection({
           )}
         </div>
       ) : (
-        <AdaptiveGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+        <div className="space-y-2.5">
           {filtered.map((m) => (
             <NearbyStoreCard key={m.id} merchant={m} />
           ))}
-        </AdaptiveGrid>
+        </div>
       )}
     </section>
   );

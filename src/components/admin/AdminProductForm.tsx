@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { ProductImageUpload } from "@/components/admin/ProductImageUpload";
 import { isRejectedImagePayload } from "@/lib/validation/http-url";
 import { useRouter } from "next/navigation";
 import type { ProductCategory } from "@/types/catalog";
@@ -70,7 +71,7 @@ export function AdminProductForm({
     if (!name.trim()) { setError("Ürün adı zorunlu."); return; }
     if (!unit.trim()) { setError("Birim zorunlu."); return; }
     if (imageUrl.trim() && isRejectedImagePayload(imageUrl)) {
-      setError("Görsel için base64/data URL kullanılamaz. Storage yolunu veya https URL girin.");
+      setError("Use uploaded image URL only");
       return;
     }
 
@@ -201,20 +202,11 @@ export function AdminProductForm({
         />
       </div>
 
-      {/* Image URL */}
-      <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Görsel URL</label>
-        <input
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://... veya storage path"
-          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-blue-400 focus:outline-none"
-        />
-        <p className="mt-1 text-xs text-gray-400">
-          Görseli yükledikten sonra URL&apos;i buraya yapıştırın. Yükleme için:{" "}
-          <span className="font-mono">product-images/{"{product-id}"}/main.webp</span>
-        </p>
-      </div>
+      <ProductImageUpload
+        value={imageUrl}
+        onChange={setImageUrl}
+        disabled={saving}
+      />
 
       {/* Active toggle */}
       <div className="flex items-center gap-3">

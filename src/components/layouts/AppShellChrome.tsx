@@ -31,28 +31,34 @@ export function AppShellChrome({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isConsumer = context === "consumer";
+
   return (
     <div
       className={cn(
         "app-shell min-h-[100dvh] bg-app-bg font-sans text-text-primary",
-        "app-shell--with-sidebar",
+        isConsumer ? "app-shell--consumer" : "app-shell--with-sidebar",
       )}
     >
-      <ShellSidebar
-        title={title}
-        subtitle={subtitle}
-        items={navItems}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
-      <div className="app-shell-body flex min-h-[100dvh] min-w-0 flex-col">
-        <ShellTopBar
+      {!isConsumer && (
+        <ShellSidebar
           title={title}
           subtitle={subtitle}
-          headerActions={headerActions}
-          onMenuOpen={() => setSidebarOpen(true)}
+          items={navItems}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
+      )}
+
+      <div className="app-shell-body flex min-h-[100dvh] min-w-0 flex-col">
+        {!isConsumer && (
+          <ShellTopBar
+            title={title}
+            subtitle={subtitle}
+            headerActions={headerActions}
+            onMenuOpen={() => setSidebarOpen(true)}
+          />
+        )}
         <ShellMain context={context}>{children}</ShellMain>
       </div>
 

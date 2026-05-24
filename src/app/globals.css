@@ -47,10 +47,16 @@
   grid-template-columns: 1fr;
 }
 
+/* Operator: sidebar from tablet up */
 @media (min-width: 768px) {
   .app-shell--with-sidebar {
     grid-template-columns: var(--shell-sidebar-w) 1fr;
   }
+}
+
+/* Consumer: single column, bottom nav only — no top/side chrome on phone */
+.app-shell--consumer {
+  grid-template-columns: 1fr;
 }
 
 .app-shell-body {
@@ -79,6 +85,21 @@
   margin-right: auto;
   width: 100%;
   max-width: var(--content-max-consumer);
+}
+
+/* Home / market browse: full-bleed like legacy mobile (BrowseHeader + bottom nav only) */
+.shell-main--consumer .shell-main-inner:has(> .home-screen) {
+  padding: 0;
+  padding-bottom: calc(var(--shell-bottom-nav-h) + 0.5rem);
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .shell-main--consumer .shell-main-inner:has(> .home-screen) {
+    padding-left: var(--spacing-page);
+    padding-right: var(--spacing-page);
+    max-width: var(--content-max-consumer);
+  }
 }
 
 .shell-main--operator .shell-main-inner {

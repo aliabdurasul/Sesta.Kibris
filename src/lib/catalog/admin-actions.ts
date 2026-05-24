@@ -25,12 +25,32 @@ import {
   CATALOG_ALL_TAG,
   slugify,
 } from "./cache-tags";
-import { normalizeStoredProductImageUrl } from "@/lib/validation/http-url";
+import {
+  isRejectedImagePayload,
+  normalizeStoredProductImageUrl,
+} from "@/lib/validation/http-url";
 
 function normalizeStoredImageUrl(
   url: string | null | undefined,
 ): string | null {
   return normalizeStoredProductImageUrl(url);
+}
+
+function validateImageUrlForSave(
+  url: string | null | undefined,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  if (!url?.trim()) return { ok: true, value: null };
+  if (isRejectedImagePayload(url)) {
+    return { ok: false, error: "Use uploaded image URL only" };
+  }
+  const normalized = normalizeStoredProductImageUrl(url);
+  if (!normalized) {
+    return {
+      ok: false,
+      error: "Geçerli bir görsel yükleyin veya https URL girin.",
+    };
+  }
+  return { ok: true, value: normalized };
 }
 
 // ── Products ──────────────────────────────────────────────────────────────────
@@ -99,6 +119,11 @@ export async function adminCreateProduct(
     adminSupabase,
   );
 
+  const imageCheck = validateImageUrlForSave(input.image_url);
+  if (!imageCheck.ok) {
+    return { success: false, error: imageCheck.error };
+  }
+
   const payload: GlobalProductInsert = {
     ...(input as Partial<GlobalProduct>),
     name: input.name!,
@@ -107,7 +132,7 @@ export async function adminCreateProduct(
     created_by: user.id,
     approved_by: user.id,
     approved_at: new Date().toISOString(),
-    image_url: normalizeStoredImageUrl(input.image_url),
+    image_url: imageCheck.value,
   };
 
   const { data, error } = await adminSupabase
@@ -130,11 +155,19 @@ export async function adminUpdateProduct(
   update: GlobalProductUpdate,
 ): Promise<{ success: boolean; error?: string }> {
   const adminSupabase = createAdminServerClient();
+
+  let image_url: string | null | undefined = update.image_url;
+  if (update.image_url !== undefined) {
+    const imageCheck = validateImageUrlForSave(update.image_url);
+    if (!imageCheck.ok) {
+      return { success: false, error: imageCheck.error };
+    }
+    image_url = imageCheck.value;
+  }
+
   const normalized: GlobalProductUpdate = {
     ...update,
-    ...(update.image_url !== undefined
-      ? { image_url: normalizeStoredImageUrl(update.image_url) }
-      : {}),
+    ...(update.image_url !== undefined ? { image_url } : {}),
   };
   const { error } = await adminSupabase
     .from("global_products")
