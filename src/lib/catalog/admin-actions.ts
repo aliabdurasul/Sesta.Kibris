@@ -25,13 +25,12 @@ import {
   CATALOG_ALL_TAG,
   slugify,
 } from "./cache-tags";
-import { resolveProductImageUrl } from "@/lib/validation/http-url";
+import { normalizeStoredProductImageUrl } from "@/lib/validation/http-url";
 
 function normalizeStoredImageUrl(
   url: string | null | undefined,
 ): string | null {
-  if (!url?.trim()) return null;
-  return resolveProductImageUrl(url) ?? url.trim();
+  return normalizeStoredProductImageUrl(url);
 }
 
 // ── Products ──────────────────────────────────────────────────────────────────

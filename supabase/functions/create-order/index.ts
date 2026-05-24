@@ -1,18 +1,15 @@
 /**
  * Edge Function: POST /functions/v1/create-order
  *
- * Supports:
- *   - Authenticated customer (JWT role=customer)
- *   - Guest checkout (no JWT; guest_name + guest_phone required)
- *
- * Schema aligned with migrations 00006, 00007, 00008.
+ * Supports authenticated customer and guest checkout.
+ * Uses merchant_inventory + global_products (not legacy products view FK).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-checkout-auth-mode",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -32,12 +29,41 @@ interface RequestBody {
   delivery_address: DeliveryAddress;
   customer_notes?: string | null;
   notes?: string | null;
-  /** Set by /api/orders/create for logged-in customers */
   authenticated_user_id?: string | null;
   guest_user_id?: string | null;
   guest_name?: string | null;
   guest_phone?: string | null;
   guest_email?: string | null;
+}
+
+interface InventoryRow {
+  id: string;
+  product_id: string;
+  price: number;
+  is_available: boolean;
+  global_products: {
+    id: string;
+    name: string;
+    is_active: boolean;
+  } | null;
+}
+
+function logEvent(event: string, data: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
+}
+
+function dbErrorFields(err: {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}) {
+  return {
+    db_code: err.code ?? null,
+    db_message: err.message ?? null,
+    db_details: err.details ?? null,
+    db_hint: err.hint ?? null,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -59,10 +85,15 @@ Deno.serve(async (req: Request) => {
     const body = (await req.json()) as RequestBody;
     const checkoutMode = req.headers.get("X-Checkout-Auth-Mode");
 
+    logEvent("order.create.start", {
+      checkoutMode,
+      merchantId: body.merchant_id ?? null,
+      itemCount: Array.isArray(body.items) ? body.items.length : 0,
+    });
+
     let userId: string | null = null;
     let isGuest = true;
 
-    // Trusted server proxy (/api/orders/create) — do not require end-user JWT
     if (checkoutMode === "authenticated") {
       const authUserId = body.authenticated_user_id?.trim() ?? null;
       if (!authUserId) {
@@ -79,7 +110,6 @@ Deno.serve(async (req: Request) => {
     } else if (checkoutMode === "guest") {
       isGuest = true;
     } else {
-      // Direct client call (legacy): optional Bearer customer JWT
       const authHeader = req.headers.get("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const userClient = createClient(supabaseUrl, anonKey, {
@@ -109,7 +139,6 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
-      // No JWT: guest if guest_user_id + guest fields present
       if (
         !userId &&
         body.guest_user_id &&
@@ -119,6 +148,7 @@ Deno.serve(async (req: Request) => {
         isGuest = true;
       }
     }
+
     const { merchant_id, items, delivery_address } = body;
     const customerNotes = body.customer_notes ?? body.notes ?? null;
 
@@ -129,7 +159,10 @@ Deno.serve(async (req: Request) => {
       !delivery_address?.full_address ||
       !delivery_address?.district
     ) {
-      return json({ error: "Eksik veya hatalı sipariş verisi." }, 400);
+      return json(
+        { error: "Eksik veya hatalı sipariş verisi.", code: "INVALID_PAYLOAD" },
+        400,
+      );
     }
 
     let customerId: string | null = null;
@@ -145,11 +178,17 @@ Deno.serve(async (req: Request) => {
       guestName = body.guest_name?.trim() ?? null;
       guestPhone = body.guest_phone?.trim() ?? null;
       if (!guestUserId || !uuidRe.test(guestUserId)) {
-        return json({ error: "Geçersiz misafir oturumu. Sayfayı yenileyin." }, 400);
+        return json(
+          { error: "Geçersiz misafir oturumu. Sayfayı yenileyin.", code: "INVALID_GUEST_SESSION" },
+          400,
+        );
       }
       if (!guestName || !guestPhone) {
         return json(
-          { error: "Misafir sipariş için ad ve telefon zorunludur." },
+          {
+            error: "Misafir sipariş için ad ve telefon zorunludur.",
+            code: "GUEST_FIELDS_REQUIRED",
+          },
           400,
         );
       }
@@ -172,14 +211,24 @@ Deno.serve(async (req: Request) => {
           .select("id")
           .single();
         if (insertError || !created) {
-          console.error("Customer auto-create error:", insertError);
-          return json({ error: "Müşteri kaydı oluşturulamadı." }, 500);
+          logEvent("order.create.customer_insert_failed", dbErrorFields(insertError ?? {}));
+          return json(
+            {
+              error: "Müşteri kaydı oluşturulamadı.",
+              code: "CUSTOMER_INSERT_FAILED",
+              ...dbErrorFields(insertError ?? {}),
+            },
+            500,
+          );
         }
         customer = created;
       }
 
       if (customerError || !customer) {
-        return json({ error: "Müşteri kaydı bulunamadı." }, 404);
+        return json(
+          { error: "Müşteri kaydı bulunamadı.", code: "CUSTOMER_NOT_FOUND" },
+          404,
+        );
       }
       customerId = customer.id;
     } else {
@@ -187,7 +236,6 @@ Deno.serve(async (req: Request) => {
         {
           error: "Kimlik doğrulama gerekli veya misafir bilgisi girin.",
           code: "AUTH_REQUIRED",
-          hint: "Use POST /api/orders/create from the storefront or send X-Checkout-Auth-Mode guest with guest_user_id.",
         },
         401,
       );
@@ -200,48 +248,77 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (merchantError || !merchant || !merchant.is_active) {
-      return json({ error: "Market bulunamadı veya aktif değil." }, 404);
+      logEvent("order.create.merchant_lookup_failed", {
+        merchantId: merchant_id,
+        ...dbErrorFields(merchantError ?? {}),
+      });
+      return json(
+        { error: "Market bulunamadı veya aktif değil.", code: "MERCHANT_NOT_FOUND" },
+        404,
+      );
     }
 
     if (!merchant.is_open) {
-      return json({ error: "Bu market şu an siparişe kapalı." }, 400);
+      return json(
+        { error: "Bu market şu an siparişe kapalı.", code: "MERCHANT_CLOSED" },
+        400,
+      );
     }
 
-    const productIds = items.map((i: OrderItem) => i.product_id);
-    const { data: products, error: productsError } = await admin
-      .from("products")
-      .select(
-        "id, product_id, name, description, price, merchant_id, is_available",
-      )
-      .in("product_id", productIds)
-      .eq("merchant_id", merchant_id);
+    const globalProductIds = items.map((i: OrderItem) => i.product_id);
 
-    if (productsError) {
-      console.error("Product lookup error:", productsError);
+    logEvent("order.create.inventory_lookup", {
+      merchantId: merchant_id,
+      globalProductIds,
+      itemCount: items.length,
+    });
+
+    const { data: inventoryRows, error: inventoryError } = await admin
+      .from("merchant_inventory")
+      .select(
+        `
+        id,
+        product_id,
+        price,
+        is_available,
+        global_products!inner ( id, name, is_active )
+      `,
+      )
+      .eq("merchant_id", merchant_id)
+      .in("product_id", globalProductIds);
+
+    if (inventoryError) {
+      logEvent("order.create.inventory_lookup_failed", {
+        merchantId: merchant_id,
+        globalProductIds,
+        ...dbErrorFields(inventoryError),
+      });
       return json(
         {
           error: "Ürün envanteri yüklenemedi.",
           code: "INVENTORY_LOOKUP_FAILED",
-          detail: productsError.message,
+          ...dbErrorFields(inventoryError),
         },
         500,
       );
     }
 
-    if (!products?.length) {
+    const inventory = (inventoryRows ?? []) as InventoryRow[];
+
+    if (!inventory.length) {
       return json(
         {
           error:
             "Sepetteki ürünler bu markette bulunamadı. Sayfayı yenileyip tekrar deneyin.",
           code: "INVENTORY_NOT_FOUND",
-          requested_product_ids: productIds,
+          requested_product_ids: globalProductIds,
         },
         400,
       );
     }
 
-    const missingIds = productIds.filter(
-      (pid) => !products.some((p) => p.product_id === pid),
+    const missingIds = globalProductIds.filter(
+      (pid) => !inventory.some((row) => row.product_id === pid),
     );
     if (missingIds.length > 0) {
       return json(
@@ -255,8 +332,8 @@ Deno.serve(async (req: Request) => {
     }
 
     for (const item of items) {
-      const product = products.find((p) => p.product_id === item.product_id);
-      if (!product) {
+      const row = inventory.find((r) => r.product_id === item.product_id);
+      if (!row) {
         return json(
           {
             error: `Ürün bulunamadı: ${item.product_id}`,
@@ -265,32 +342,53 @@ Deno.serve(async (req: Request) => {
           400,
         );
       }
-      if (!product.is_available) {
-        return json({ error: `"${product.name}" şu an mevcut değil.` }, 400);
-      }
-      if (!product.price || product.price <= 0) {
+      const gp = row.global_products;
+      if (!gp?.is_active) {
         return json(
           {
-            error: `"${product.name}" için geçerli fiyat yok.`,
+            error: `"${gp?.name ?? "Ürün"}" artık listede değil.`,
+            code: "PRODUCT_INACTIVE",
+          },
+          400,
+        );
+      }
+      if (!row.is_available) {
+        return json(
+          {
+            error: `"${gp.name}" şu an mevcut değil.`,
+            code: "PRODUCT_UNAVAILABLE",
+          },
+          400,
+        );
+      }
+      if (!row.price || row.price <= 0 || !Number.isFinite(row.price)) {
+        return json(
+          {
+            error: `"${gp.name}" için geçerli fiyat yok.`,
             code: "INVALID_PRICE",
           },
           400,
         );
       }
       if (item.quantity < 1 || item.quantity > 99) {
-        return json({ error: "Geçersiz ürün adedi." }, 400);
+        return json(
+          { error: "Geçersiz ürün adedi.", code: "INVALID_QUANTITY" },
+          400,
+        );
       }
     }
 
     let totalAmount = 0;
     const orderItems = items.map((item: OrderItem) => {
-      const product = products.find((p) => p.product_id === item.product_id)!;
-      const lineTotal = product.price * item.quantity;
+      const row = inventory.find((r) => r.product_id === item.product_id)!;
+      const gp = row.global_products!;
+      const lineTotal = row.price * item.quantity;
       totalAmount += lineTotal;
       return {
-        product_id: product.id,
-        product_name: product.name,
-        unit_price: product.price,
+        product_id: row.id,
+        global_product_id: row.product_id,
+        product_name: gp.name,
+        unit_price: row.price,
         quantity: item.quantity,
         line_total: lineTotal,
       };
@@ -301,10 +399,20 @@ Deno.serve(async (req: Request) => {
       return json(
         {
           error: `Minimum sipariş tutarı ${(minOrder / 100).toFixed(0)} ₺. Lütfen daha fazla ürün ekleyin.`,
+          code: "BELOW_MINIMUM_ORDER",
         },
         400,
       );
     }
+
+    logEvent("order.create.order_insert", {
+      merchantId: merchant_id,
+      customerId,
+      guestUserId,
+      totalAmount,
+      itemCount: orderItems.length,
+      inventoryIds: orderItems.map((oi) => oi.product_id),
+    });
 
     const { data: order, error: orderError } = await admin
       .from("orders")
@@ -324,25 +432,69 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (orderError || !order) {
-      console.error("Order insert error:", orderError);
-      return json({ error: "Sipariş oluşturulamadı." }, 500);
+      logEvent("order.create.order_insert_failed", {
+        merchantId: merchant_id,
+        ...dbErrorFields(orderError ?? {}),
+      });
+      return json(
+        {
+          error: "Sipariş oluşturulamadı.",
+          code: "ORDER_INSERT_FAILED",
+          ...dbErrorFields(orderError ?? {}),
+        },
+        500,
+      );
     }
 
-    const { error: itemsError } = await admin.from("order_items").insert(
-      orderItems.map((oi) => ({
-        order_id: order.id,
-        product_id: oi.product_id,
-        product_name: oi.product_name,
-        unit_price: oi.unit_price,
-        quantity: oi.quantity,
-        line_total: oi.line_total,
-      })),
-    );
+    const itemsPayload = orderItems.map((oi) => ({
+      order_id: order.id,
+      product_id: oi.product_id,
+      product_name: oi.product_name,
+      unit_price: oi.unit_price,
+      quantity: oi.quantity,
+      line_total: oi.line_total,
+    }));
+
+    logEvent("order.create.items_insert", {
+      orderId: order.id,
+      payload: itemsPayload,
+    });
+
+    const { error: itemsError } = await admin
+      .from("order_items")
+      .insert(itemsPayload);
 
     if (itemsError) {
-      console.error("Order items insert error:", itemsError);
-      await admin.from("orders").delete().eq("id", order.id);
-      return json({ error: "Sipariş kalemleri oluşturulamadı." }, 500);
+      logEvent("order.create.items_insert_failed", {
+        orderId: order.id,
+        merchantId: merchant_id,
+        payload: itemsPayload,
+        ...dbErrorFields(itemsError),
+      });
+
+      const { error: rollbackError } = await admin
+        .from("orders")
+        .delete()
+        .eq("id", order.id);
+
+      if (rollbackError) {
+        logEvent("order.create.rollback_failed", {
+          orderId: order.id,
+          ...dbErrorFields(rollbackError),
+        });
+      } else {
+        logEvent("order.create.rollback", { orderId: order.id });
+      }
+
+      return json(
+        {
+          error: "Sipariş kalemleri oluşturulamadı.",
+          code: "ORDER_ITEMS_INSERT_FAILED",
+          order_id: order.id,
+          ...dbErrorFields(itemsError),
+        },
+        500,
+      );
     }
 
     await admin.from("order_status_log").insert({
@@ -354,10 +506,24 @@ Deno.serve(async (req: Request) => {
       note: isGuest ? "Misafir sipariş oluşturuldu" : "Sipariş oluşturuldu",
     });
 
+    logEvent("order.create.success", {
+      orderId: order.id,
+      merchantId: merchant_id,
+      guestUserId,
+      userId,
+      itemCount: orderItems.length,
+      totalAmount,
+    });
+
     return json({ order_id: order.id, guest: isGuest }, 201);
   } catch (err) {
-    console.error("create-order unhandled error:", err);
-    return json({ error: "Beklenmedik bir hata oluştu." }, 500);
+    logEvent("order.create.unhandled", {
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    return json(
+      { error: "Beklenmedik bir hata oluştu.", code: "UNHANDLED" },
+      500,
+    );
   }
 });
 

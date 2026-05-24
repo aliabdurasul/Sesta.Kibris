@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { isRejectedImagePayload } from "@/lib/validation/http-url";
 import { useRouter } from "next/navigation";
 import type { ProductCategory } from "@/types/catalog";
 
@@ -68,6 +69,10 @@ export function AdminProductForm({
     setError(null);
     if (!name.trim()) { setError("Ürün adı zorunlu."); return; }
     if (!unit.trim()) { setError("Birim zorunlu."); return; }
+    if (imageUrl.trim() && isRejectedImagePayload(imageUrl)) {
+      setError("Görsel için base64/data URL kullanılamaz. Storage yolunu veya https URL girin.");
+      return;
+    }
 
     const tags = tagsRaw
       .split(",")

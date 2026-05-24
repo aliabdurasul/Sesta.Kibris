@@ -6,7 +6,6 @@
  * Other logged-in roles: guest form (login must not block checkout).
  */
 import { getSession } from "@/lib/auth";
-import { ensureGuestUserId } from "@/lib/guest/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { CheckoutForm } from "./CheckoutForm";
 import { GuestCheckoutForm } from "./GuestCheckoutForm";
@@ -60,8 +59,6 @@ async function getCustomerAddresses(userId: string): Promise<
 }
 
 export default async function CheckoutPage() {
-  await ensureGuestUserId();
-
   const session = await getSession();
 
   if (!session) {

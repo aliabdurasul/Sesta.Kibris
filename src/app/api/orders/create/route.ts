@@ -1,14 +1,15 @@
 /**
  * POST /api/orders/create
  *
- * Does NOT require a Supabase session for guests.
- * guest_user_id is ALWAYS set server-side via ensureGuestUserId() — never trusted from client.
+ * Validates payload, resolves guest/auth, proxies to create-order edge function.
+ * guest_user_id is ALWAYS set server-side — never trusted from client.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
-import { ensureGuestUserId } from "@/lib/guest/server";
+import { resolveGuestUserId } from "@/lib/guest/server";
 import { guestCookieOptions } from "@/lib/guest/session";
 import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
+import { validateCreateOrderBody } from "@/lib/orders/validate-create-payload";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
   if (!supabaseUrl || !anonKey || !serviceKey) {
-    log.error("api.orders.create.config", {
+    log.error("order.create.config_missing", {
       hasUrl: !!supabaseUrl,
       hasAnon: !!anonKey,
       hasService: !!serviceKey,
@@ -31,9 +32,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let body: Record<string, unknown>;
+  let rawBody: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
+    rawBody = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json(
       { error: "Geçersiz JSON gövdesi.", code: "INVALID_BODY" },
@@ -41,10 +42,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Never trust client guest identity
-  delete body["guest_user_id"];
+  log.info("order.create.start", {
+    merchantId: rawBody["merchant_id"] ?? null,
+    itemCount: Array.isArray(rawBody["items"]) ? rawBody["items"].length : 0,
+  });
 
-  const guestUserId = await ensureGuestUserId();
+  const validated = validateCreateOrderBody(rawBody);
+  if (!validated.ok) {
+    log.warn("order.create.validation_failed", {
+      code: validated.code,
+      details: validated.details,
+    });
+    return NextResponse.json(
+      { error: validated.error, code: validated.code, details: validated.details },
+      { status: 400 },
+    );
+  }
+
+  const guestUserId = await resolveGuestUserId();
 
   let authMode: "guest" | "authenticated" = "guest";
   let userId: string | null = null;
@@ -62,11 +77,13 @@ export async function POST(request: NextRequest) {
       userId = resolved.userId;
     }
   } catch (err) {
-    log.warn("api.orders.create.session_read_failed", {
+    log.warn("order.create.session_read_failed", {
       reason: err instanceof Error ? err.message : "unknown",
     });
     authMode = "guest";
   }
+
+  const body: Record<string, unknown> = { ...validated.payload };
 
   if (authMode === "authenticated" && userId) {
     body["authenticated_user_id"] = userId;
@@ -77,6 +94,10 @@ export async function POST(request: NextRequest) {
     authMode = "guest";
     body["guest_user_id"] = guestUserId;
     if (!body["guest_name"] || !body["guest_phone"]) {
+      log.warn("order.create.validation_failed", {
+        code: "GUEST_FIELDS_REQUIRED",
+        guestUserId,
+      });
       return NextResponse.json(
         {
           error: "Misafir sipariş için ad ve telefon zorunludur.",
@@ -88,10 +109,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  log.info("api.orders.create", {
+  log.info("order.create.proxy", {
     authMode,
-    guest_user_id: authMode === "guest" ? guestUserId : null,
+    guestUserId: authMode === "guest" ? guestUserId : null,
     userId: userId ?? null,
+    merchantId: validated.payload.merchant_id,
+    productIds: validated.payload.items.map((i) => i.product_id),
+    itemCount: validated.payload.items.length,
   });
 
   const edgeHeaders: Record<string, string> = {
@@ -110,7 +134,7 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(30_000),
     });
   } catch (err) {
-    log.error("api.orders.create.edge_fetch", {
+    log.error("order.create.edge_fetch_failed", {
       authMode,
       reason: err instanceof Error ? err.message : "unknown",
     });
@@ -135,11 +159,26 @@ export async function POST(request: NextRequest) {
   }
 
   if (!edgeRes.ok) {
-    log.error("api.orders.create.edge_error", {
+    const logEvent =
+      payload["code"] === "ORDER_ITEMS_INSERT_FAILED"
+        ? "order.create.items_insert_failed"
+        : "api.orders.create.edge_error";
+
+    log.error(logEvent, {
       authMode,
       status: edgeRes.status,
-      payload,
+      code: payload["code"] ?? null,
+      message: payload["error"] ?? null,
+      dbCode: payload["db_code"] ?? null,
+      dbMessage: payload["db_message"] ?? null,
+      dbDetails: payload["db_details"] ?? null,
+      dbHint: payload["db_hint"] ?? null,
+      orderId: payload["order_id"] ?? null,
+      merchantId: validated.payload.merchant_id,
+      guestUserId: authMode === "guest" ? guestUserId : null,
+      userId: userId ?? null,
     });
+
     return NextResponse.json(
       { ...payload, authMode, source: "create-order" },
       { status: edgeRes.status },
@@ -149,11 +188,13 @@ export async function POST(request: NextRequest) {
   const orderId =
     typeof payload["order_id"] === "string" ? payload["order_id"] : null;
 
-  log.info("api.orders.create.success", {
+  log.info("order.create.success", {
     authMode,
     orderId,
-    redirectTarget: orderId ? `/customer/orders/${orderId}` : null,
-    status: edgeRes.status,
+    merchantId: validated.payload.merchant_id,
+    guestUserId: authMode === "guest" ? guestUserId : null,
+    userId: userId ?? null,
+    itemCount: validated.payload.items.length,
   });
 
   const response = NextResponse.json(
