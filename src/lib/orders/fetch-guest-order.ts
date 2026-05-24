@@ -1,10 +1,13 @@
 /**
- * Guest order fetch — service role, token + order id must match.
- * Never expose orders without valid guest_token.
+ * Guest order fetch — service role; token must match orders.guest_token.
  */
-import { timingSafeEqual } from "crypto";
 import { createAdminServerClient } from "@/lib/supabase/admin";
-import { isValidGuestToken, isValidOrderId } from "@/lib/guest/token";
+import {
+  guestTokensMatch,
+  isValidGuestToken,
+  isValidOrderId,
+  normalizeGuestToken,
+} from "@/lib/guest/token";
 import { log } from "@/lib/logger";
 import { ORDER_MERCHANT_NAME_PHONE } from "@/lib/supabase/relation-selects";
 import type { Database } from "@/types/database";
@@ -38,19 +41,19 @@ export type GuestOrderDetail = Pick<
   }[];
 };
 
-function tokenMatches(stored: string, provided: string): boolean {
-  const a = Buffer.from(stored.trim());
-  const b = Buffer.from(provided.trim());
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
+export type GuestOrderFetchResult =
+  | { status: "ok"; order: GuestOrderDetail }
+  | { status: "not_found" }
+  | { status: "token_mismatch" }
+  | { status: "auth_required" };
 
-export async function fetchGuestOrderById(
+export async function fetchOrderForTracking(
   orderId: string,
-  guestToken: string,
-): Promise<GuestOrderDetail | null> {
-  if (!isValidOrderId(orderId) || !isValidGuestToken(guestToken)) {
-    return null;
+  guestToken: string | null,
+  authenticatedUserId: string | null,
+): Promise<GuestOrderFetchResult> {
+  if (!isValidOrderId(orderId)) {
+    return { status: "not_found" };
   }
 
   const admin = createAdminServerClient();
@@ -66,7 +69,6 @@ export async function fetchGuestOrderById(
     `,
     )
     .eq("id", orderId)
-    .is("customer_id", null)
     .maybeSingle();
 
   if (error) {
@@ -75,23 +77,44 @@ export async function fetchGuestOrderById(
       reason: error.message,
       code: error.code,
     });
-    return null;
+    return { status: "not_found" };
   }
 
-  if (!data) return null;
+  if (!data) return { status: "not_found" };
 
   const row = data as GuestOrderDetail & {
     guest_token: string | null;
     customer_id: string | null;
   };
 
-  if (!row.guest_token || !tokenMatches(row.guest_token, guestToken)) {
-    log.warn("guest.order.token_mismatch", { orderId });
-    return null;
+  if (row.customer_id) {
+    if (!authenticatedUserId || row.customer_id !== authenticatedUserId) {
+      return { status: "auth_required" };
+    }
+    const { guest_token: _t, customer_id: _c, ...order } = row;
+    return { status: "ok", order: order as GuestOrderDetail };
+  }
+
+  if (!guestToken || !isValidGuestToken(guestToken)) {
+    return { status: "token_mismatch" };
+  }
+
+  const stored = row.guest_token?.trim() ?? "";
+  if (!stored) {
+    log.warn("guest.order.missing_db_token", { orderId });
+    return { status: "token_mismatch" };
+  }
+
+  if (!guestTokensMatch(stored, guestToken)) {
+    log.warn("guest.order.token_mismatch", {
+      orderId,
+      storedPrefix: normalizeGuestToken(stored).slice(0, 8),
+    });
+    return { status: "token_mismatch" };
   }
 
   const { guest_token: _t, customer_id: _c, ...order } = row;
-  return order as GuestOrderDetail;
+  return { status: "ok", order: order as GuestOrderDetail };
 }
 
 export type GuestOrderSummary = Pick<
@@ -106,7 +129,9 @@ export async function fetchGuestOrdersByToken(
 ): Promise<GuestOrderSummary[]> {
   if (!isValidGuestToken(guestToken)) return [];
 
+  const normalized = normalizeGuestToken(guestToken);
   const admin = createAdminServerClient();
+
   const { data, error } = await admin
     .from("orders")
     .select(
@@ -115,33 +140,50 @@ export async function fetchGuestOrdersByToken(
       merchants ( name )
     `,
     )
-    .eq("guest_token", guestToken)
     .is("customer_id", null)
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
 
   if (error) {
     log.error("guest.orders.list_error", { reason: error.message });
     return [];
   }
 
-  return (data ?? []).map((row) => {
-    const r = row as {
-      id: string;
-      status: OrderRow["status"];
-      total_amount: number;
-      created_at: string;
-      merchants: { name: string } | { name: string }[] | null;
-    };
-    const m = r.merchants;
-    const merchant =
-      m && !Array.isArray(m) ? { name: m.name } : Array.isArray(m) && m[0] ? { name: m[0].name } : null;
-    return {
-      id: r.id,
-      status: r.status,
-      total_amount: r.total_amount,
-      created_at: r.created_at,
-      merchant,
-    };
-  });
+  return (data ?? [])
+    .filter((row) => {
+      const r = row as { guest_token: string | null };
+      return r.guest_token && guestTokensMatch(r.guest_token, normalized);
+    })
+    .map((row) => {
+      const r = row as {
+        id: string;
+        status: OrderRow["status"];
+        total_amount: number;
+        created_at: string;
+        merchants: { name: string } | { name: string }[] | null;
+      };
+      const m = r.merchants;
+      const merchant =
+        m && !Array.isArray(m)
+          ? { name: m.name }
+          : Array.isArray(m) && m[0]
+            ? { name: m[0].name }
+            : null;
+      return {
+        id: r.id,
+        status: r.status,
+        total_amount: r.total_amount,
+        created_at: r.created_at,
+        merchant,
+      };
+    });
+}
+
+/** @deprecated use fetchOrderForTracking */
+export async function fetchGuestOrderById(
+  orderId: string,
+  guestToken: string,
+): Promise<GuestOrderDetail | null> {
+  const result = await fetchOrderForTracking(orderId, guestToken, null);
+  return result.status === "ok" ? result.order : null;
 }

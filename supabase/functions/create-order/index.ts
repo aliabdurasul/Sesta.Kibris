@@ -177,17 +177,30 @@ Deno.serve(async (req: Request) => {
     const guestTokenRe =
       /^sk_guest_[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+    function normalizeGuestToken(value: string): string {
+      const v = value.trim();
+      if (v.startsWith("sk_guest_")) return v.slice("sk_guest_".length);
+      return v;
+    }
+
+    function isValidGuestToken(value: string | null | undefined): boolean {
+      if (!value?.trim()) return false;
+      const v = value.trim();
+      return uuidRe.test(v) || guestTokenRe.test(v);
+    }
+
     if (isGuest) {
       guestUserId = body.guest_user_id?.trim() ?? null;
-      guestToken = body.guest_token?.trim() ?? null;
+      const rawGuestToken = body.guest_token?.trim() ?? null;
       guestName = body.guest_name?.trim() ?? null;
       guestPhone = body.guest_phone?.trim() ?? null;
-      if (!guestToken || !guestTokenRe.test(guestToken)) {
+      if (!isValidGuestToken(rawGuestToken)) {
         return json(
           { error: "Geçersiz misafir anahtarı. Sayfayı yenileyin.", code: "INVALID_GUEST_TOKEN" },
           400,
         );
       }
+      guestToken = normalizeGuestToken(rawGuestToken!);
       if (!guestUserId || !uuidRe.test(guestUserId)) {
         return json(
           { error: "Geçersiz misafir oturumu. Sayfayı yenileyin.", code: "INVALID_GUEST_SESSION" },
@@ -534,7 +547,10 @@ Deno.serve(async (req: Request) => {
       totalAmount,
     });
 
-    return json({ order_id: order.id, guest: isGuest }, 201);
+    return json(
+      { order_id: order.id, guest: isGuest, guest_token: isGuest ? guestToken : undefined },
+      201,
+    );
   } catch (err) {
     logEvent("order.create.unhandled", {
       reason: err instanceof Error ? err.message : String(err),

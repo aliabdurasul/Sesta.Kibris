@@ -62,6 +62,13 @@ function isPublicPath(pathname: string): boolean {
   return isGuestAllowedPath(pathname);
 }
 
+/** Guest/market routes — skip Supabase session refresh (no auth.session.invalid noise). */
+function shouldSkipAuthSession(pathname: string): boolean {
+  if (isPublicPath(pathname)) return true;
+  if (/^\/api\/orders\/[^/]+\/track$/i.test(pathname)) return true;
+  return false;
+}
+
 const ROOT_WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /** Copy Set-Cookie headers from one response onto another (e.g. cleared auth cookies). */
@@ -109,13 +116,12 @@ export default async function middleware(request: NextRequest) {
     });
   }
 
-  if (isPublicPath(pathname)) {
-    const result = await updateSession(request, pathnameHeader);
-    if (result instanceof NextResponse) return result;
-    if ("response" in result) {
-      return ensureGuestCookie(request, result.response, !!result.user);
-    }
-    return NextResponse.next();
+  if (shouldSkipAuthSession(pathname)) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-pathname", pathname);
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    });
   }
 
   const result = await updateSession(request, pathnameHeader);

@@ -2,7 +2,7 @@
 
 /**
  * Fast guest checkout — name, phone, address only. No account required.
- * Uses sk_guest_* token in localStorage for order tracking.
+ * Uses guest_token in localStorage for order tracking.
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import { useCartStore } from "@/lib/cart-store";
 import {
   getOrCreateGuestToken,
   rememberGuestOrder,
+  saveGuestToken,
 } from "@/lib/guest/token-client";
 import { sanitizeGuestPhone } from "@/lib/guest/token";
 
@@ -97,6 +98,7 @@ export function GuestCheckoutForm() {
 
       const json = (await res.json()) as {
         order_id?: string;
+        guest_token?: string;
         error?: string;
       };
 
@@ -104,6 +106,8 @@ export function GuestCheckoutForm() {
         throw new Error(json.error ?? "Sipariş oluşturulamadı.");
       }
 
+      const persistedToken = json.guest_token ?? guestToken;
+      saveGuestToken(persistedToken, json.order_id);
       clearCart();
       rememberGuestOrder(json.order_id);
       router.push(`/order/${json.order_id}`);

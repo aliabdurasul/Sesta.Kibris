@@ -2,6 +2,7 @@
  * Guest order tracking — /order/[orderId]
  * No login required; access via localStorage guest token.
  */
+import { Suspense } from "react";
 import Link from "next/link";
 import { GuestOrderTracker } from "@/components/order/GuestOrderTracker";
 import { isValidOrderId } from "@/lib/guest/token";
@@ -36,7 +37,15 @@ export default async function GuestOrderPage({ params }: PageProps) {
           </Link>
           <h1 className="text-xl font-bold text-gray-900">Sipariş Takibi</h1>
         </div>
-        <GuestOrderTracker orderId={orderId} />
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-16 text-gray-400">
+              Yükleniyor…
+            </div>
+          }
+        >
+          <GuestOrderTracker orderId={orderId} />
+        </Suspense>
       </div>
     </main>
   );

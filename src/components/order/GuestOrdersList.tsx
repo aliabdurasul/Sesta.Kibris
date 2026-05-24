@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { GUEST_TOKEN_HEADER } from "@/lib/guest/token";
-import { getOrCreateGuestToken } from "@/lib/guest/token-client";
+import { getStoredGuestToken } from "@/lib/guest/token-client";
 import { ORDER_STATUS_LABELS } from "@/lib/orders/order-status-labels";
 import { SoftSignupCard } from "@/components/order/SoftSignupCard";
 
@@ -20,9 +19,13 @@ export function GuestOrdersList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getOrCreateGuestToken();
-    fetch("/api/orders/guest", {
-      headers: { [GUEST_TOKEN_HEADER]: token },
+    const token = getStoredGuestToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    fetch(`/api/orders/guest?token=${encodeURIComponent(token)}`, {
       cache: "no-store",
     })
       .then((res) => res.json())

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GUEST_TOKEN_HEADER } from "@/lib/guest/token";
+import { useSearchParams } from "next/navigation";
 import {
-  getOrCreateGuestToken,
-  getStoredGuestToken,
+  getGuestTokenForOrder,
   rememberGuestOrder,
+  saveGuestToken,
 } from "@/lib/guest/token-client";
+import { isValidGuestToken } from "@/lib/guest/token";
 import {
   ORDER_STATUS_ICONS,
   ORDER_STATUS_LABELS,
@@ -21,24 +22,49 @@ interface Props {
 }
 
 export function GuestOrderTracker({ orderId }: Props) {
+  const searchParams = useSearchParams();
   const [order, setOrder] = useState<GuestOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const token = getStoredGuestToken() ?? getOrCreateGuestToken();
+    const fromUrl = searchParams.get("token")?.trim() ?? null;
+    if (fromUrl && isValidGuestToken(fromUrl)) {
+      saveGuestToken(fromUrl, orderId);
+    }
+
+    const token = getGuestTokenForOrder(orderId);
+    if (!token) {
+      setLoading(false);
+      setError(
+        "Sipariş takip anahtarı bulunamadı. Aynı cihaz ve tarayıcıdan açın veya yeni sipariş verin.",
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetch(`/api/orders/${orderId}/track`, {
-        headers: { [GUEST_TOKEN_HEADER]: token },
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/orders/${orderId}/track?token=${encodeURIComponent(token)}`,
+        { cache: "no-store" },
+      );
       const json = (await res.json()) as {
         order?: GuestOrderDetail;
         error?: string;
+        code?: string;
       };
+
+      if (res.status === 403) {
+        setOrder(null);
+        setError(
+          json.code === "AUTH_REQUIRED"
+            ? "Bu sipariş için giriş yapmanız gerekiyor."
+            : "Erişim reddedildi. Takip bağlantısını aynı cihazdan açın.",
+        );
+        return;
+      }
 
       if (!res.ok || !json.order) {
         setOrder(null);
@@ -53,7 +79,7 @@ export function GuestOrderTracker({ orderId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, searchParams]);
 
   useEffect(() => {
     void load();
@@ -71,9 +97,6 @@ export function GuestOrderTracker({ orderId }: Props) {
     return (
       <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-gray-100">
         <p className="text-gray-600">{error ?? "Sipariş bulunamadı."}</p>
-        <p className="mt-2 text-sm text-gray-400">
-          Bu cihazda sipariş verdiyseniz tarayıcı verilerini silmemiş olmalısınız.
-        </p>
         <Link
           href="/#browse-markets"
           className="mt-6 inline-block text-sm font-medium text-blue-600 hover:underline"

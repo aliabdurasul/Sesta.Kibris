@@ -10,7 +10,7 @@ import { resolveGuestUserId } from "@/lib/guest/server";
 import { guestCookieOptions } from "@/lib/guest/session";
 import { resolveCheckoutAuth } from "@/lib/orders/resolve-checkout-auth";
 import { validateCreateOrderBody } from "@/lib/orders/validate-create-payload";
-import { isValidGuestToken } from "@/lib/guest/token";
+import { isValidGuestToken, normalizeGuestToken } from "@/lib/guest/token";
 import { log } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    body["guest_token"] = guestToken;
+    body["guest_token"] = normalizeGuestToken(guestToken);
     delete body["guest_email"];
 
     if (!body["guest_name"] || !body["guest_phone"]) {
@@ -223,7 +223,12 @@ export async function POST(request: NextRequest) {
       ...payload,
       authMode,
       order: orderId ? { id: orderId } : undefined,
-      guest_token: authMode === "guest" ? body["guest_token"] : undefined,
+      guest_token:
+        authMode === "guest"
+          ? (typeof payload["guest_token"] === "string"
+              ? payload["guest_token"]
+              : body["guest_token"])
+          : undefined,
     },
     { status: edgeRes.status },
   );
