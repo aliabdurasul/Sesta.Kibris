@@ -1,12 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  /* Sky blue — primary accent */
   --color-accent: #38bdf8;
   --color-accent-strong: #0ea5e9;
   --color-accent-soft: #eff8ff;
 
-  /* Orange — CTAs, badges, cart highlights */
   --color-brand-orange: #f97316;
   --color-brand-orange-soft: #fff7ed;
 
@@ -18,10 +16,13 @@
   --color-text-secondary: #374151;
   --color-text-muted: #6b7280;
 
-  /* Customer column: 480px max */
-  --width-customer: 30rem;
-
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Fluid layout tokens */
+  --spacing-page: clamp(1rem, 3vw, 2rem);
+  --shell-sidebar-w: 15rem;
+  --content-max-consumer: min(72rem, 100%);
+  --shell-bottom-nav-h: 5.25rem;
 }
 
 @keyframes fade-in {
@@ -39,60 +40,64 @@
   animation: fade-in 0.35s ease-out both;
 }
 
-/* ── Customer marketplace (mobile-first) ─────────────────────────────────── */
-.customer-app {
-  --customer-nav-height: 5.25rem;
+/* ── Unified app shell ───────────────────────────────────────────────────── */
+.app-shell {
+  display: grid;
+  min-height: 100dvh;
+  grid-template-columns: 1fr;
 }
 
-.customer-main {
+@media (min-width: 768px) {
+  .app-shell--with-sidebar {
+    grid-template-columns: var(--shell-sidebar-w) 1fr;
+  }
+}
+
+.app-shell-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell-main {
+  font-size: clamp(0.875rem, 1.5vw, 1rem);
+}
+
+.shell-main-inner {
+  padding: var(--spacing-page);
+  padding-bottom: calc(var(--shell-bottom-nav-h) + var(--spacing-page));
+}
+
+@media (min-width: 1024px) {
+  .shell-main-inner {
+    padding-bottom: var(--spacing-page);
+  }
+}
+
+.shell-main--consumer .shell-main-inner {
   margin-left: auto;
   margin-right: auto;
-  max-width: var(--width-customer);
   width: 100%;
-  min-height: 100vh;
-  padding: 1rem 1rem calc(var(--customer-nav-height) + 4.5rem);
+  max-width: var(--content-max-consumer);
 }
 
-.customer-main > .home-screen {
+.shell-main--operator .shell-main-inner {
+  max-width: 100%;
+}
+
+/* Home screen extra space when cart bar visible */
+.shell-main--consumer .shell-main-inner > .home-screen {
   padding-bottom: 0.5rem;
 }
 
-.customer-bottom-nav-inner {
-  margin-left: auto;
-  margin-right: auto;
-  max-width: var(--width-customer);
-  border-top: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-brand-white) 95%, transparent);
-  padding: 0.625rem 1.25rem 1.25rem;
-  box-shadow: 0 -4px 24px rgba(16, 24, 40, 0.06);
-  backdrop-filter: blur(12px);
-  border-radius: 1.25rem 1.25rem 0 0;
-}
-
-/* Legacy storefront pages without CustomerShell wrapper */
+/* Legacy: pages not yet inside AppShell */
 main > .home-screen {
   padding-bottom: 5.5rem;
 }
 
-main > :not(.home-screen):not(.customer-page) {
+main > :not(.home-screen):not(.shell-main-inner) {
   margin-left: auto;
   margin-right: auto;
-  max-width: var(--width-customer);
+  max-width: var(--content-max-consumer);
   padding: 1rem 1rem 7rem;
-}
-
-/* ── Dashboard (desktop-first) ───────────────────────────────────────────── */
-.dashboard-main {
-  max-width: 100%;
-}
-
-.dashboard-table th,
-.dashboard-table td {
-  vertical-align: middle;
-}
-
-@media (min-width: 768px) {
-  .dashboard-mobile-stack {
-    display: none;
-  }
 }

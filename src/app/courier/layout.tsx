@@ -8,8 +8,9 @@
  */
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { CourierNav } from "@/components/courier/CourierNav";
+import { AppShell } from "@/components/layouts/AppShell";
 import { SignOutForm } from "@/components/auth/SignOutForm";
+import { courierNav } from "@/lib/ui/nav-config";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
 
@@ -81,28 +82,29 @@ export default async function CourierLayout({
   log.info("courier.layout.ok", { userId: session.id, courierId: courier.id });
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400">Kurye Paneli</p>
-            <h1 className="font-bold text-gray-900">
-              {courier.full_name ?? session.email}
-            </h1>
-          </div>
+    <AppShell
+      context="operator"
+      title={courier.full_name ?? "Kurye"}
+      subtitle="Kurye Paneli"
+      navItems={courierNav()}
+      headerActions={
+        <>
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
               courier.is_available
-                ? "bg-green-100 text-green-700"
-                : "bg-gray-100 text-gray-500"
+                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                : "bg-app-bg text-text-muted ring-1 ring-border"
             }`}
           >
             {courier.is_available ? "Müsait" : "Meşgul"}
           </span>
-        </div>
-      </header>
-      <main className="flex-1 px-4 pb-24 pt-4">{children}</main>
-      <CourierNav />
-    </div>
+          <SignOutForm buttonClassName="text-sm text-text-muted hover:text-brand-navy">
+            Çıkış
+          </SignOutForm>
+        </>
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

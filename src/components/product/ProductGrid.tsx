@@ -3,6 +3,7 @@
 /**
  * Product grid — flat list ordered by display_order (server-side).
  */
+import { AdaptiveGrid } from "@/components/adaptive/AdaptiveGrid";
 import { ProductCard } from "./ProductCard";
 
 import type { StorefrontProduct } from "@/types/catalog";
@@ -19,7 +20,7 @@ export function ProductGrid({
   merchantSlug,
 }: ProductGridProps) {
   return (
-    <div className="space-y-3">
+    <AdaptiveGrid className="md:grid-cols-1 lg:grid-cols-2">
       {products.map((product) => (
         <ProductCard
           key={product.inventoryId}
@@ -28,6 +29,6 @@ export function ProductGrid({
           merchantSlug={merchantSlug}
         />
       ))}
-    </div>
+    </AdaptiveGrid>
   );
 }

@@ -1,8 +1,9 @@
 /**
- * Customer marketplace layout — mobile-first, max 480px, bottom nav on all pages.
+ * Storefront — unified AppShell (consumer context).
  */
-import { CustomerShell } from "@/components/layouts/CustomerShell";
+import { AppShell } from "@/components/layouts/AppShell";
 import { getSession } from "@/lib/auth";
+import { consumerNav } from "@/lib/ui/nav-config";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,17 @@ export default async function StorefrontLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  const ordersHref = session
-    ? "/customer/orders"
-    : "/orders/guest";
+  const ordersHref = session ? "/customer/orders" : "/orders/guest";
 
-  return <CustomerShell ordersHref={ordersHref}>{children}</CustomerShell>;
+  return (
+    <AppShell
+      context="consumer"
+      title="SestaKıbrıs"
+      subtitle="Marketplace"
+      navItems={consumerNav(ordersHref)}
+      showCartBar
+    >
+      {children}
+    </AppShell>
+  );
 }

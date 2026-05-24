@@ -1,10 +1,10 @@
 /**
- * Admin layout — desktop-first SaaS dashboard (sidebar + tables).
+ * Admin — unified AppShell (operator context).
  */
 import { requireRole } from "@/lib/auth";
 import { SignOutForm } from "@/components/auth/SignOutForm";
-import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { adminNavItems } from "@/lib/ui/nav-config";
+import { AppShell } from "@/components/layouts/AppShell";
+import { adminNav } from "@/lib/ui/nav-config";
 
 export default async function AdminLayout({
   children,
@@ -14,10 +14,11 @@ export default async function AdminLayout({
   await requireRole("admin");
 
   return (
-    <DashboardShell
+    <AppShell
+      context="operator"
       title="Yönetim Paneli"
       subtitle="Admin"
-      navItems={adminNavItems()}
+      navItems={adminNav()}
       headerActions={
         <SignOutForm buttonClassName="text-sm text-text-muted hover:text-brand-navy">
           Çıkış
@@ -25,6 +26,6 @@ export default async function AdminLayout({
       }
     >
       {children}
-    </DashboardShell>
+    </AppShell>
   );
 }

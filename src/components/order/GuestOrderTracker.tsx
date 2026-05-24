@@ -13,7 +13,9 @@ import {
   ORDER_STATUS_LABELS,
   orderDeliveryEstimate,
 } from "@/lib/orders/order-status-labels";
+import { SplitPanel } from "@/components/adaptive/SplitPanel";
 import { OrderStatusTimeline } from "@/components/customer/OrderStatusTimeline";
+import { Card } from "@/components/ui/Card";
 import { SoftSignupCard } from "@/components/order/SoftSignupCard";
 import { StatusChip } from "@/components/ui/StatusChip";
 import type { GuestOrderDetail } from "@/lib/orders/fetch-guest-order";
@@ -117,7 +119,7 @@ export function GuestOrderTracker({ orderId }: Props) {
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
-  return (
+  const mainContent = (
     <div className="space-y-4">
       <div
         className={`rounded-2xl p-5 shadow-sm ring-1 ${
@@ -189,13 +191,29 @@ export function GuestOrderTracker({ orderId }: Props) {
       <SoftSignupCard />
 
       <div className="flex gap-3 text-center text-sm">
-        <Link href="/orders/guest" className="flex-1 text-blue-600 hover:underline">
+        <Link href="/orders/guest" className="flex-1 text-accent-strong hover:underline">
           Diğer siparişlerim
         </Link>
-        <Link href="/#browse-markets" className="flex-1 text-gray-500 hover:underline">
+        <Link href="/#browse-markets" className="flex-1 text-text-muted hover:underline">
           Alışverişe dön
         </Link>
       </div>
     </div>
+  );
+
+  const desktopAside = (
+    <Card className="hidden lg:block">
+      <h3 className="mb-2 font-semibold text-brand-navy">Teslimat takibi</h3>
+      <p className="text-sm text-text-muted">
+        Canlı harita ve kurye konumu yakında bu panelde görünecek.
+      </p>
+      <div className="mt-4 flex h-40 items-center justify-center rounded-xl bg-app-bg text-3xl ring-1 ring-border">
+        🗺️
+      </div>
+    </Card>
+  );
+
+  return (
+    <SplitPanel list={mainContent} detail={desktopAside} />
   );
 }

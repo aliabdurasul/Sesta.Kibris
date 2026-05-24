@@ -1,233 +1,159 @@
-# SestaKıbrıs UI System
+# SestaKıbrıs — Unified Adaptive UI System
 
-Dual-product interface on a single Next.js app: **mobile marketplace** (customers) and **SaaS dashboard** (merchant/admin). Same backend; never mix layouts.
+One application, one component library, one layout engine. Presentation adapts by **breakpoint** and **UI context** (`consumer` vs `operator`)—not separate apps or duplicate component trees.
 
 ---
 
-## 1. Global architecture
+## Core principle
+
+| Not this | This |
+|----------|------|
+| Separate mobile app + dashboard app | Same routes, same components |
+| `CustomerShell` vs `DashboardShell` | Single [`AppShell`](src/components/layouts/AppShell.tsx) |
+| Role-specific Button/Card copies | Shared [`src/components/ui/`](src/components/ui/) + [`adaptive/`](src/components/adaptive/) |
+
+**Roles change density and tools, not pages.**
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart TB
-  subgraph app [Next.js App]
-    MW[middleware role guard]
-    SF["(storefront) CustomerShell"]
-    AD["/admin DashboardShell"]
-    ME["/merchant DashboardShell"]
-    CU["/customer orders only"]
+  subgraph layouts [Segment layouts]
+    SF["(storefront)"]
+    AD["admin"]
+    ME["merchant"]
+    CU["customer"]
+    CO["courier"]
   end
-  MW --> SF
-  MW --> AD
-  MW --> ME
-  MW --> CU
-```
 
-| Role | UI mode | Layout entry |
-|------|---------|----------------|
-| Guest / customer shopping | Mobile marketplace | `src/app/(storefront)/layout.tsx` → `CustomerShell` |
-| Logged-in customer orders | Mobile + `CustomerNav` | `src/app/customer/layout.tsx` |
-| Merchant | Desktop dashboard | `src/app/merchant/layout.tsx` → `DashboardShell` |
-| Admin | Desktop dashboard | `src/app/admin/layout.tsx` → `DashboardShell` |
+  subgraph engine [Unified engine]
+    APP[AppShell]
+    UI[UiProvider]
+    NAV[ShellSidebar + ShellBottomNav]
+    ADP[adaptive components]
+  end
 
-**Rule:** Do not render dashboard sidebars on storefront routes or bottom nav on admin pages.
-
----
-
-## 2. Design tokens
-
-Defined in `src/app/globals.css` (`@theme`):
-
-| Token | Use |
-|-------|-----|
-| `accent` / `accent-strong` / `accent-soft` | Sky blue — links, active nav, chips |
-| `brand-orange` / `brand-orange-soft` | CTAs, cart badge, highlights |
-| `brand-navy` | Headings, primary buttons |
-| `app-bg` | Page background |
-| `border` | Cards, dividers |
-| `text-primary` / `text-secondary` / `text-muted` | Typography scale |
-| `width-customer` (30rem / 480px) | Customer column max width |
-
----
-
-## 3. Customer UI (mobile-first)
-
-### Layout
-
-- `CustomerShell` — `src/components/layouts/CustomerShell.tsx`
-- Centered column `max-width: 480px`
-- Sticky bottom nav on all storefront pages
-- `CartBar` when cart has items
-
-### Navigation (`StorefrontBottomNav`)
-
-| Tab | Route |
-|-----|--------|
-| Ana | `/` |
-| Marketler | `/#browse-markets` |
-| Ara | `/catalog` |
-| Sepet | `/checkout` |
-| Siparişler | `/orders/guest` or `/customer/orders` if logged in |
-
-Config: `src/lib/ui/nav-config.ts` → `storefrontTabs()`
-
-### Pages (storefront group)
-
-| Page | Path | Notes |
-|------|------|--------|
-| Home feed | `/` | Markets + promos |
-| Market detail | `/market/[slug]` | Product grid, add to cart |
-| Product detail | `/market/[slug]/product/[productSlug]` | |
-| Catalog / search | `/catalog` | Global product directory |
-| Checkout | `/checkout` | Guest + auth forms |
-| Guest track | `/order/[orderId]` | Token-based |
-| Guest orders list | `/orders/guest` | |
-
-### Customer-only components
-
-| Component | Path |
-|-----------|------|
-| `StorefrontBottomNav` | `src/components/customer/StorefrontBottomNav.tsx` |
-| `OrderStatusTimeline` | `src/components/customer/OrderStatusTimeline.tsx` |
-| `ProductCard` / `ProductGrid` | `src/components/product/` |
-| `CartBar` | `src/components/cart/CartBar.tsx` |
-| `GuestOrderTracker` | `src/components/order/` |
-
-### UX rules
-
-- No tables, no sidebars, no dense filters
-- Large tap targets (`min-h-11` buttons)
-- Guest checkout — no forced signup
-- Order tracking: 5-step visual timeline
-
----
-
-## 4. Dashboard UI (desktop-first)
-
-### Layout
-
-- `DashboardShell` — sidebar (md+) + top bar + scrollable main
-- Mobile: hamburger nav in `DashboardMobileHeader`; data as **cards**, not tables
-
-### Admin navigation
-
-| Item | Path |
-|------|------|
-| Panel | `/admin` |
-| Siparişler | `/admin/orders` |
-| Ürünler | `/admin/catalog` |
-| Aktörler | `/admin/actors` |
-| Ayarlar | `/admin/catalog/categories` |
-
-### Merchant navigation
-
-| Item | Path |
-|------|------|
-| Siparişler | `/market/{slug}` |
-| Ürünler | `/merchant/products` |
-| Envanter | `/merchant/products/browse` |
-| Ayarlar | `/merchant/profile` |
-
-Config: `adminNavItems()`, `merchantNavItems(slug)` in `src/lib/ui/nav-config.ts`
-
-### Dashboard-only components
-
-| Component | Path | Purpose |
-|-----------|------|---------|
-| `DashboardSidebar` | `src/components/dashboard/DashboardSidebar.tsx` | Fixed left nav |
-| `DashboardMobileHeader` | `src/components/dashboard/DashboardMobileHeader.tsx` | Collapsible mobile menu |
-| `DataTable` | `src/components/dashboard/DataTable.tsx` | Table desktop / cards mobile |
-
-### Admin order table columns (target)
-
-Order ID | Customer | Market | Status | Total | Actions
-
-Use `DataTable` + `StatusChip` when migrating list pages.
-
----
-
-## 5. Shared UI primitives
-
-`src/components/ui/`:
-
-| Component | File |
-|-----------|------|
-| Button | `Button.tsx` |
-| Badge | `Badge.tsx` |
-| Card | `Card.tsx` |
-| Alert | `Alert.tsx` |
-| Modal | `Modal.tsx` |
-| StatusChip | `StatusChip.tsx` |
-
-Utility: `src/lib/ui/cn.ts`
-
----
-
-## 6. Order status mapping (customer timeline)
-
-| Step | DB statuses |
-|------|-------------|
-| Alındı | `PENDING` |
-| Onaylandı | `CONFIRMED` |
-| Hazırlanıyor | `READY` |
-| Yolda | `ASSIGNED`, `PICKED_UP`, `IN_TRANSIT` |
-| Teslim | `DELIVERED` |
-
-Full labels: `src/lib/orders/order-status-labels.ts`
-
----
-
-## 7. Responsive rules
-
-### Customer
-
-- Single column only
-- `max-width: 480px` centered
-- Bottom nav always visible (storefront)
-- Typography: `text-base` body, `text-lg` headings on key screens
-
-### Dashboard
-
-- `md+`: sidebar 240px + full tables
-- `<md`: hide sidebar, show drawer; `DataTable` renders card stack
-- Typography: compact `text-sm` in tables
-
----
-
-## 8. Component hierarchy
-
-```
-src/
-├── app/
-│   ├── (storefront)/     → CustomerShell
-│   ├── admin/            → DashboardShell
-│   ├── merchant/         → DashboardShell
-│   └── customer/         → CustomerNav (orders sub-app)
-├── components/
-│   ├── ui/               → Shared primitives
-│   ├── layouts/          → CustomerShell, DashboardShell
-│   ├── customer/         → StorefrontBottomNav, OrderStatusTimeline
-│   ├── dashboard/        → Sidebar, DataTable
-│   ├── product/          → Customer cards
-│   └── order/            → Guest tracking
-└── lib/ui/               → cn, nav-config
+  SF --> APP
+  AD --> APP
+  ME --> APP
+  CU --> APP
+  CO --> APP
+  APP --> UI
+  APP --> NAV
+  pages --> ADP
 ```
 
 ---
 
-## 9. Future scalability
+## Breakpoints
 
-| Feature | Extension point |
-|---------|------------------|
-| Delivery map | Customer: new page under `/order/[id]/map`; reuse `OrderStatusTimeline` |
-| Analytics | Admin: `/admin/analytics` + chart components in `components/dashboard/charts/` |
-| Multi-market | Merchant nav already slug-scoped; admin filters by `merchant_id` in `DataTable` |
-| Filters / bulk | `components/dashboard/FiltersPanel.tsx`, `BulkActionsBar.tsx` (not yet built) |
+| Viewport | Tailwind | Navigation | Data layout |
+|----------|----------|------------|-------------|
+| Mobile | `< md` (768px) | Bottom nav | Single column cards |
+| Tablet | `md` – `lg` | Sidebar drawer + bottom nav hidden at lg | 2-column card grids |
+| Desktop | `≥ lg` (1024px) | Fixed sidebar + top bar | Operator: tables; consumer: wider grids |
+
+Hooks: [`useBreakpoint`](src/lib/ui/use-breakpoint.ts), [`useUiContext`](src/components/layouts/UiProvider.tsx)
 
 ---
 
-## 10. Migration checklist
+## UI context (not separate UIs)
 
-- [ ] Replace raw `gray-*` / `blue-*` on storefront pages with theme tokens
-- [ ] Migrate `admin/catalog` table to `DataTable`
-- [ ] Align `customer/layout` with `CustomerShell` + unified bottom nav (optional)
-- [ ] Deprecate `HomeBottomNav`, `MerchantNav` (replaced by new nav)
-- [ ] Add `FiltersPanel` for admin order history
+| Context | Routes | Density | Content width |
+|---------|--------|---------|---------------|
+| `consumer` | `(storefront)`, `customer` | comfortable | Fluid up to `--content-max-consumer` (72rem) |
+| `operator` | `admin`, `merchant`, `courier` | compact | Full width in shell |
+
+Set in each segment layout via `<AppShell context="…">`.
+
+---
+
+## App shell
+
+**Files:**
+
+- [`AppShell.tsx`](src/components/layouts/AppShell.tsx) — server-friendly wrapper
+- [`AppShellChrome.tsx`](src/components/layouts/AppShellChrome.tsx) — client chrome (drawer state)
+- [`ShellSidebar.tsx`](src/components/layouts/ShellSidebar.tsx)
+- [`ShellBottomNav.tsx`](src/components/layouts/ShellBottomNav.tsx)
+- [`ShellTopBar.tsx`](src/components/layouts/ShellTopBar.tsx)
+- [`ShellMain.tsx`](src/components/layouts/ShellMain.tsx)
+
+**Navigation config:** [`src/lib/ui/nav-config.ts`](src/lib/ui/nav-config.ts)
+
+- `consumerNav(ordersHref)`
+- `adminNav()`, `merchantNav(slug)`, `courierNav()`
+
+Same `NavItem[]` drives sidebar and bottom nav.
+
+---
+
+## Adaptive components
+
+| Component | Path | Behavior |
+|-----------|------|----------|
+| `AdaptiveDataView` | `adaptive/AdaptiveDataView.tsx` | Cards → 2-col grid → table (operator) |
+| `AdaptiveGrid` | `adaptive/AdaptiveGrid.tsx` | Responsive product/market grid |
+| `SplitPanel` | `adaptive/SplitPanel.tsx` | Stack mobile; list + detail on desktop |
+| `PageHeader` | `adaptive/PageHeader.tsx` | Title + actions |
+| `FiltersBar` | `adaptive/FiltersBar.tsx` | Operator filters; modal on mobile |
+| `BulkActionsBar` | `adaptive/BulkActionsBar.tsx` | Operator bulk actions on desktop |
+
+---
+
+## Shared primitives
+
+[`src/components/ui/`](src/components/ui/): `Button`, `Badge`, `Card`, `Alert`, `Modal`, `StatusChip`
+
+Design tokens in [`src/app/globals.css`](src/app/globals.css): accent sky blue, orange highlights, fluid `--spacing-page`.
+
+---
+
+## Layout wiring
+
+| Layout | Context | Title |
+|--------|---------|-------|
+| `(storefront)/layout.tsx` | consumer | SestaKıbrıs |
+| `customer/layout.tsx` | consumer | Siparişlerim |
+| `admin/layout.tsx` | operator | Yönetim Paneli |
+| `merchant/layout.tsx` | operator | Market name |
+| `courier/layout.tsx` | operator | Courier name |
+
+---
+
+## Migrated pages (reference)
+
+- Admin catalog → `AdminCatalogProducts` + `FiltersBar` + `PageHeader`
+- Admin orders → `AdminOrdersList`
+- Product grid → `AdaptiveGrid`
+- Home markets → `AdaptiveGrid` in `MarketBrowseSection`
+- Guest order track → `SplitPanel` + map placeholder on desktop
+
+---
+
+## UX philosophy
+
+- **Mobile:** fastest path to action (bottom nav, cards, minimal forms)
+- **Tablet:** hybrid (drawer nav, 2-column grids)
+- **Desktop:** control and efficiency (sidebar, tables, filters, split panels)
+
+---
+
+## Migration checklist (remaining)
+
+- [ ] Token sweep: replace `gray-*` / `blue-*` on non-migrated pages
+- [ ] `AdminOrderAssignment` / `MerchantOrderQueue` → `AdaptiveDataView` where applicable
+- [ ] Catalog browse consumer page: optional filters sidebar on `lg+`
+- [ ] Analytics widgets under `adaptive/` when Phase 2 analytics ships
+
+---
+
+## Verification
+
+```bash
+pnpm typecheck
+```
+
+Manual: resize browser across mobile / tablet / desktop on `/`, `/admin/catalog`, `/merchant/products`.

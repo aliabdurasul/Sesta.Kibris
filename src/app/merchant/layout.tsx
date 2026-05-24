@@ -9,9 +9,9 @@
  */
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
-import { DashboardShell } from "@/components/layouts/DashboardShell";
+import { AppShell } from "@/components/layouts/AppShell";
 import { MerchantOpenToggle } from "@/components/merchant/MerchantOpenToggle";
-import { merchantNavItems } from "@/lib/ui/nav-config";
+import { merchantNav } from "@/lib/ui/nav-config";
 import { SignOutForm } from "@/components/auth/SignOutForm";
 import { log } from "@/lib/logger";
 import type { Database } from "@/types/database";
@@ -77,10 +77,11 @@ export default async function MerchantLayout({
   log.info("merchant.layout.ok", { userId: session.id, merchantId: merchant.id });
 
   return (
-    <DashboardShell
+    <AppShell
+      context="operator"
       title={merchant.name}
       subtitle="Market Paneli"
-      navItems={merchantNavItems(merchant.slug)}
+      navItems={merchantNav(merchant.slug)}
       headerActions={
         <MerchantOpenToggle
           isOpen={merchant.is_open}
@@ -89,6 +90,6 @@ export default async function MerchantLayout({
       }
     >
       {children}
-    </DashboardShell>
+    </AppShell>
   );
 }
