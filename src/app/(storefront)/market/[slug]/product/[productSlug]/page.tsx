@@ -10,6 +10,7 @@ import { getStorefrontProductBySlug, getPriceComparison } from "@/lib/catalog/st
 import { buildMarketMetadata } from "@/lib/market/seo-metadata";
 import Image from "next/image";
 import Link from "next/link";
+import { MerchantCartGuard } from "@/components/cart/MerchantCartGuard";
 import { AddToCartButton } from "@/components/product/AddToCartButton";
 import { sanitizeProductImageUrl } from "@/lib/validation/http-url";
 
@@ -61,6 +62,7 @@ export default async function StorefrontProductPage({ params }: PageProps) {
   const safeImageUrl = sanitizeProductImageUrl(product.imageUrl);
 
   return (
+    <MerchantCartGuard merchantId={merchant.id}>
     <div className="mx-auto max-w-3xl">
       <Link
         href={`/market/${merchant.slug}`}
@@ -163,5 +165,6 @@ export default async function StorefrontProductPage({ params }: PageProps) {
         </div>
       )}
     </div>
+    </MerchantCartGuard>
   );
 }

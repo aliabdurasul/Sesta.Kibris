@@ -23,6 +23,7 @@
   --shell-sidebar-w: 15rem;
   --content-max-consumer: min(72rem, 100%);
   --shell-bottom-nav-h: 5.25rem;
+  --cart-pill-offset: 0px;
 }
 
 @keyframes fade-in {
@@ -71,7 +72,9 @@
 
 .shell-main-inner {
   padding: var(--spacing-page);
-  padding-bottom: calc(var(--shell-bottom-nav-h) + var(--spacing-page));
+  padding-bottom: calc(
+    var(--shell-bottom-nav-h) + var(--cart-pill-offset) + var(--spacing-page)
+  );
 }
 
 @media (min-width: 1024px) {

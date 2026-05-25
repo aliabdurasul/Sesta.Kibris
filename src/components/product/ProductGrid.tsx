@@ -1,34 +1,37 @@
 "use client";
 
-/**
- * Product grid — flat list ordered by display_order (server-side).
- */
-import { AdaptiveGrid } from "@/components/adaptive/AdaptiveGrid";
 import { ProductCard } from "./ProductCard";
-
 import type { StorefrontProduct } from "@/types/catalog";
 
 interface ProductGridProps {
   products: StorefrontProduct[];
   merchantId: string;
   merchantSlug: string;
+  id?: string;
 }
 
+/** Mobile-first 2-column grocery grid — equal-height cards. */
 export function ProductGrid({
   products,
   merchantId,
   merchantSlug,
+  id,
 }: ProductGridProps) {
   return (
-    <AdaptiveGrid className="md:grid-cols-1 lg:grid-cols-2">
+    <div
+      id={id}
+      className="grid grid-cols-2 gap-2 sm:gap-2.5"
+      role="list"
+    >
       {products.map((product) => (
-        <ProductCard
-          key={product.inventoryId}
-          product={product}
-          merchantId={merchantId}
-          merchantSlug={merchantSlug}
-        />
+        <div key={product.inventoryId} role="listitem" className="min-h-0">
+          <ProductCard
+            product={product}
+            merchantId={merchantId}
+            merchantSlug={merchantSlug}
+          />
+        </div>
       ))}
-    </AdaptiveGrid>
+    </div>
   );
 }

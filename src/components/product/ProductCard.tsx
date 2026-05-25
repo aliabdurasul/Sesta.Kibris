@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * Single product card.
- * Prices are in kuruş (lowest unit) — displayed as ₺.
- *
- * SAFETY: imageUrl is validated before passing to next/image.
- * Invalid URLs (storage keys, base64, etc.) are treated as null → fallback UI.
- */
 import Image from "next/image";
 import { AddToCartButton } from "./AddToCartButton";
 import type { StorefrontProduct } from "@/types/catalog";
@@ -18,60 +11,56 @@ interface ProductCardProps {
   merchantSlug: string;
 }
 
-export function ProductCard({ product, merchantId, merchantSlug }: ProductCardProps) {
+export function ProductCard({
+  product,
+  merchantId,
+  merchantSlug,
+}: ProductCardProps) {
   if (!product?.productId) return null;
 
-  const priceDisplay = `${(product.price / 100).toFixed(2)} ₺`;
+  const priceDisplay = `₺${(product.price / 100).toFixed(2)}`;
   const safeImageUrl = sanitizeProductImageUrl(product.imageUrl);
 
   return (
-    <div
-      className={`flex items-start gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 ${
-        !product.isAvailable ? "opacity-50" : ""
+    <article
+      className={`flex h-full flex-col overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-100/80 ${
+        !product.isAvailable ? "opacity-60" : ""
       }`}
     >
-      {/* Product image */}
-      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+      <div className="relative aspect-square w-full bg-gray-50">
         {safeImageUrl ? (
           <Image
             src={safeImageUrl}
             alt={product.name}
             fill
+            loading="lazy"
             className="object-cover"
-            sizes="80px"
+            sizes="(max-width: 768px) 50vw, 180px"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl text-gray-300">
+          <div className="flex h-full w-full items-center justify-center text-2xl text-gray-200">
             🍽️
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="min-w-0 flex-1">
-        <h3 className="font-semibold text-gray-900">{product.name}</h3>
-        {product.unit && (
-          <span className="mb-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-            {product.unit} {product.brand && `· ${product.brand}`}
+      <div className="flex flex-1 flex-col gap-1 p-2">
+        <h3 className="line-clamp-2 min-h-[2.25rem] text-xs font-medium leading-snug text-gray-900">
+          {product.name}
+        </h3>
+
+        <div className="mt-auto flex items-center justify-between gap-1">
+          <span className="text-sm font-bold tabular-nums text-gray-900">
+            {priceDisplay}
           </span>
-        )}
-        {product.description && (
-          <p className="mt-0.5 line-clamp-2 text-sm text-gray-500">
-            {product.description}
-          </p>
-        )}
-        <div className="mt-2 flex items-center justify-between">
-          <span className="font-bold text-gray-900">{priceDisplay}</span>
           <AddToCartButton
             product={product}
             merchantId={merchantId}
             merchantSlug={merchantSlug}
+            compact
           />
         </div>
-        {!product.isAvailable && (
-          <span className="mt-1 block text-xs text-red-500">Şu an mevcut değil</span>
-        )}
       </div>
-    </div>
+    </article>
   );
 }

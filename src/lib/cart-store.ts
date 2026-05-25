@@ -3,10 +3,8 @@
  *
  * Rules:
  * - Cart belongs to a single merchant at a time.
- * - Adding a product from a different merchant clears the cart.
+ * - Adding from a different merchant requires explicit confirmation (no silent clear).
  * - Prices stored in kuruş (lowest unit), matching the DB.
- * - Cart total is computed client-side ONLY for display.
- *   The server ALWAYS recalculates the final total from product prices.
  */
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
@@ -25,8 +23,18 @@ interface CartState {
   items: CartItem[];
 }
 
+export type AddItemResult =
+  | { ok: true }
+  | { ok: false; reason: "merchant_conflict" };
+
 interface CartActions {
+  hasOtherMerchant: (merchantId: string) => boolean;
   addItem: (
+    item: Omit<CartItem, "quantity">,
+    merchantId: string,
+    merchantSlug: string,
+  ) => AddItemResult;
+  replaceMerchantAndAddItem: (
     item: Omit<CartItem, "quantity">,
     merchantId: string,
     merchantSlug: string,
@@ -34,7 +42,7 @@ interface CartActions {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  getTotal: () => number; // kuruş — display only
+  getTotal: () => number;
   getItemCount: () => number;
 }
 
@@ -44,44 +52,70 @@ const EMPTY: CartState = {
   items: [],
 };
 
+function applyAdd(
+  prev: CartState,
+  item: Omit<CartItem, "quantity">,
+  merchantId: string,
+  merchantSlug: string,
+): CartState {
+  const existing = prev.items.find((i) => i.productId === item.productId);
+
+  if (existing) {
+    return {
+      merchantId,
+      merchantSlug,
+      items: prev.items.map((i) =>
+        i.productId === item.productId
+          ? { ...i, quantity: i.quantity + 1 }
+          : i,
+      ),
+    };
+  }
+
+  return {
+    merchantId,
+    merchantSlug,
+    items: [...prev.items, { ...item, quantity: 1 }],
+  };
+}
+
 export const useCartStore = create<CartState & CartActions>()(
   persist(
     (set, get) => ({
       ...EMPTY,
 
-      addItem(item, merchantId, merchantSlug) {
-        const state = get();
+      hasOtherMerchant(merchantId) {
+        const { merchantId: current, items } = get();
+        return (
+          current !== null &&
+          current !== merchantId &&
+          items.length > 0
+        );
+      },
 
-        // Different merchant — clear cart first
-        const isNewMerchant =
-          state.merchantId !== null && state.merchantId !== merchantId;
+      addItem(item, merchantId, merchantSlug) {
+        if (get().hasOtherMerchant(merchantId)) {
+          return { ok: false, reason: "merchant_conflict" };
+        }
 
         set((prev) => {
-          const base = isNewMerchant ? EMPTY : prev;
-          const existing = base.items.find((i) => i.productId === item.productId);
-
-          if (existing) {
-            return {
-              items: base.items.map((i) =>
-                i.productId === item.productId
-                  ? { ...i, quantity: i.quantity + 1 }
-                  : i,
-              ),
-            };
-          }
-
-          return {
-            merchantId,
-            merchantSlug,
-            items: [...base.items, { ...item, quantity: 1 }],
-          };
+          const base =
+            prev.merchantId === null || prev.items.length === 0
+              ? EMPTY
+              : prev;
+          return applyAdd(base, item, merchantId, merchantSlug);
         });
+        return { ok: true };
+      },
+
+      replaceMerchantAndAddItem(item, merchantId, merchantSlug) {
+        set(() => applyAdd(EMPTY, item, merchantId, merchantSlug));
       },
 
       removeItem(productId) {
         set((prev) => {
           const items = prev.items.filter((i) => i.productId !== productId);
-          return items.length === 0 ? EMPTY : { items };
+          return items.length === 0 ? EMPTY : { ...prev, items };
         });
       },
 

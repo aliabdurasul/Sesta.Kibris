@@ -23,7 +23,7 @@ import {
 import { buildMarketMetadata } from "@/lib/market/seo-metadata";
 import Link from "next/link";
 import Image from "next/image";
-import { ProductGrid } from "@/components/product/ProductGrid";
+import { MarketShoppingView } from "@/components/market/MarketShoppingView";
 import { MerchantOrderQueue } from "@/components/merchant/MerchantOrderQueue";
 import { MerchantSlugNav } from "@/components/merchant/MerchantSlugNav";
 import { MarketJsonLd } from "@/components/market/MarketJsonLd";
@@ -194,7 +194,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
         description={display.description}
       />
 
-      <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+      <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-100">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               {safeLogoUrl ? (
@@ -267,17 +267,11 @@ export default async function MarketDetailPage({ params }: PageProps) {
           )}
       </div>
 
-      {products.length === 0 ? (
-        <div className="rounded-2xl bg-white p-8 text-center text-gray-400 shadow-sm ring-1 ring-gray-100">
-          <p>Bu marketin şu an aktif ürünü bulunmuyor.</p>
-        </div>
-      ) : (
-        <ProductGrid
-          products={products}
-          merchantId={merchantForOwner.id}
-          merchantSlug={canonicalSlug}
-        />
-      )}
+      <MarketShoppingView
+        products={products}
+        merchantId={merchantForOwner.id}
+        merchantSlug={canonicalSlug}
+      />
     </div>
   );
 }
