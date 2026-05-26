@@ -222,6 +222,11 @@ export interface Database {
           picked_up_at: string | null;
           delivered_at: string | null;
           assignment_escalated_at: string | null;
+          payment_method: string | null;
+          payment_status: string | null;
+          stripe_session_id: string | null;
+          stripe_payment_intent_id: string | null;
+          commission_amount: number | null;
         };
         Insert: Partial<Database["public"]["Tables"]["orders"]["Row"]> & {
           merchant_id: string;
@@ -250,6 +255,79 @@ export interface Database {
           line_total: number;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
+      };
+      merchant_stripe_accounts: {
+        Row: {
+          id: string;
+          merchant_id: string;
+          user_id: string;
+          stripe_account_id: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          merchant_id: string;
+          user_id: string;
+          stripe_account_id: string;
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["merchant_stripe_accounts"]["Row"]
+        >;
+      };
+      stripe_products: {
+        Row: {
+          id: string;
+          merchant_id: string;
+          stripe_product_id: string;
+          stripe_price_id: string;
+          name: string;
+          description: string | null;
+          unit_amount: number;
+          currency: string;
+          inventory_id: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          merchant_id: string;
+          stripe_product_id: string;
+          stripe_price_id: string;
+          name: string;
+          unit_amount: number;
+          description?: string | null;
+          currency?: string;
+          inventory_id?: string | null;
+          is_active?: boolean;
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["stripe_products"]["Row"]>;
+      };
+      stripe_webhook_events: {
+        Row: {
+          id: string;
+          stripe_event_id: string;
+          event_type: string;
+          processed_at: string | null;
+          last_error: string | null;
+          payload: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          stripe_event_id: string;
+          event_type: string;
+          payload?: Json | null;
+          processed_at?: string | null;
+          last_error?: string | null;
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["stripe_webhook_events"]["Row"]
+        >;
       };
       user_roles: {
         Row: {
