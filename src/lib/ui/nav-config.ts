@@ -123,7 +123,7 @@ export function merchantNav(marketSlug: string): NavItem[] {
       href: "/merchant/payments",
       label: "Ödemeler",
       icon: "💳",
-      matchPrefixes: ["/merchant/payments", "/connect"],
+      matchPrefixes: ["/merchant/payments"],
     },
     {
       href: "/merchant/profile",

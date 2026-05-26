@@ -13,7 +13,6 @@
 import type Stripe from "stripe";
 import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
 import { log } from "@/lib/logger";
-import { applicationFeeAmount } from "@/lib/stripe/helpers";
 
 type AdminClient = ReturnType<typeof createStripeAdminClient>;
 
@@ -84,15 +83,15 @@ async function markOrderPaid(
     return;
   }
 
-  const commission = applicationFeeAmount(order.total_amount as number);
+  const paidAt = new Date().toISOString();
 
   await admin
     .from("orders")
     .update({
       payment_status: "paid",
+      paid_at: paidAt,
       stripe_payment_intent_id: paymentIntentId,
       stripe_session_id: sessionId,
-      commission_amount: commission,
     })
     .eq("id", orderId)
     .eq("payment_status", "requires_payment");
@@ -161,13 +160,6 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
         log.warn("stripe.webhook.payment_intent_failed", {
           paymentIntentId: pi.id,
           orderId: orderId ?? null,
-        });
-        break;
-      }
-
-      case "account.updated": {
-        log.info("stripe.webhook.account_updated", {
-          accountId: (event.data.object as Stripe.Account).id,
         });
         break;
       }

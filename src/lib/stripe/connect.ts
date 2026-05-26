@@ -1,6 +1,9 @@
 /**
  * Stripe Connect Express onboarding via Accounts v2 API.
  *
+ * DISABLED by default (ENABLE_STRIPE_CONNECT=false). MIN-LAUNCH uses platform
+ * checkout only — see src/lib/stripe/checkout.ts and docs/stripe/PLATFORM_PAYMENTS.md.
+ *
  * WHY v2: Stripe's newer Connect model uses v2.core.accounts instead of
  * legacy `type: 'express'`. We store the returned account id in Supabase.
  *

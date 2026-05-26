@@ -7,10 +7,14 @@ import { requireRole } from "@/lib/auth";
 import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
 import { createConnectV2Account } from "@/lib/stripe/connect";
 import { log } from "@/lib/logger";
+import { connectDisabledResponse } from "@/lib/stripe/connect-disabled";
 
 export const runtime = "nodejs";
 
 export async function POST() {
+  const disabled = connectDisabledResponse();
+  if (disabled) return disabled;
+
   try {
     const session = await requireRole("merchant");
     if (!session.merchantId) {

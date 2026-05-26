@@ -1,13 +1,13 @@
 "use server";
 
 /**
- * Merchant toggles card acceptance after Stripe Connect is ready.
+ * Merchant toggles card checkout — no Stripe Connect required.
+ * Payments go to the platform account configured in server env.
  */
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { createServerClient } from "@/lib/supabase/server";
 import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
-import { getConnectAccountStatus } from "@/lib/stripe/connect";
 
 export async function setAcceptsOnlinePayment(
   enabled: boolean,
@@ -27,32 +27,6 @@ export async function setAcceptsOnlinePayment(
 
   const merchantId = (merchant as { id: string }).id;
 
-  if (enabled) {
-    const admin = createStripeAdminClient();
-    const { data: connectRow } = await admin
-      .from("merchant_stripe_accounts")
-      .select("stripe_account_id")
-      .eq("merchant_id", merchantId)
-      .maybeSingle();
-
-    if (!connectRow?.stripe_account_id) {
-      return {
-        ok: false,
-        error: "Önce Stripe hesabınızı bağlayın.",
-      };
-    }
-
-    const status = await getConnectAccountStatus(
-      connectRow.stripe_account_id as string,
-    );
-    if (!status.readyToReceivePayments) {
-      return {
-        ok: false,
-        error: "Stripe onboarding tamamlanmadan kart ödemesi açılamaz.",
-      };
-    }
-  }
-
   const admin = createStripeAdminClient();
   const { error } = await admin
     .from("merchants")
@@ -65,6 +39,5 @@ export async function setAcceptsOnlinePayment(
   }
 
   revalidatePath("/merchant/payments");
-  revalidatePath("/connect");
   return { ok: true };
 }

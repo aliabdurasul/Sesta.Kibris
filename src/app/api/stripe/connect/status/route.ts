@@ -5,10 +5,14 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
 import { getConnectAccountStatus } from "@/lib/stripe/connect";
+import { connectDisabledResponse } from "@/lib/stripe/connect-disabled";
 
 export const runtime = "nodejs";
 
 export async function GET() {
+  const disabled = connectDisabledResponse();
+  if (disabled) return disabled;
+
   try {
     const session = await requireRole("merchant");
     if (!session.merchantId) {

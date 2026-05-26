@@ -41,13 +41,14 @@ export default async function StripeStorefrontPage() {
 
       <main className="mx-auto max-w-lg px-4 py-4">
         <p className="mb-4 text-sm text-gray-500">
-          Bu sayfa Stripe Connect MVP test vitrinidir. Gerçek market akışı{" "}
-          <code className="text-xs">/market/[slug]</code> üzerinden COD ile devam eder.
+          Demo vitrin (platform Stripe). Gerçek siparişler{" "}
+          <code className="text-xs">/market/[slug]</code> ve{" "}
+          <code className="text-xs">/checkout</code> üzerinden verilir.
         </p>
 
         {!products.length ? (
           <div className="rounded-xl bg-white p-8 text-center text-sm text-gray-400 ring-1 ring-gray-100">
-            Henüz kartla satılabilir ürün yok. Merchant: /connect → ürün oluşturun.
+            Henüz demo ürün yok. Merchant: /merchant/payments → kartı açın, API ile ürün ekleyin.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">

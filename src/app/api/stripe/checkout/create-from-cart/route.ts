@@ -1,15 +1,11 @@
 /**
  * POST /api/stripe/checkout/create-from-cart
  *
- * Real marketplace card checkout:
- * 1. create-order edge (payment_method=card)
- * 2. Stripe Hosted Checkout session from order line items
- * 3. redirect URL for customer
+ * Platform Stripe Checkout — no Connect / destination charges.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { proxyCreateOrder } from "@/lib/orders/proxy-create-order";
 import { getMerchantPaymentCapabilities } from "@/lib/stripe/payment-capabilities";
-import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
 import { createCheckoutSessionForOrder } from "@/lib/stripe/checkout-from-order";
 import { persistGuestOrderToken } from "@/lib/orders/fetch-guest-order";
 import { guestCookieOptions } from "@/lib/guest/session";
@@ -58,20 +54,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(created.body, { status: created.status });
   }
 
-  const admin = createStripeAdminClient();
-  const { data: connectRow } = await admin
-    .from("merchant_stripe_accounts")
-    .select("stripe_account_id")
-    .eq("merchant_id", merchantId)
-    .maybeSingle();
-
-  if (!connectRow?.stripe_account_id) {
-    return NextResponse.json(
-      { error: "Stripe hesabı bulunamadı.", code: "STRIPE_NOT_CONNECTED" },
-      { status: 400 },
-    );
-  }
-
   const customerEmail =
     typeof rawBody["guest_email"] === "string"
       ? rawBody["guest_email"].trim()
@@ -81,14 +63,10 @@ export async function POST(request: NextRequest) {
     const { url, sessionId, orderId } = await createCheckoutSessionForOrder({
       orderId: created.orderId,
       merchantId,
-      connectedAccountId: connectRow.stripe_account_id,
       customerEmail: customerEmail || undefined,
     });
 
-    if (
-      created.authMode === "guest" &&
-      created.guestToken
-    ) {
+    if (created.authMode === "guest" && created.guestToken) {
       await persistGuestOrderToken(orderId, created.guestToken);
     }
 

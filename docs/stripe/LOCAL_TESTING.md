@@ -1,14 +1,16 @@
-# Stripe Connect MVP — Local Testing
+# Stripe platform payments — Local Testing
 
 ## Prerequisites
 
-1. Apply migrations `00044_stripe_connect_mvp.sql` and `00045_merchant_accepts_online_payment.sql` to your Supabase project.
-2. Fill `.env.local` (see `.env.example`).
-3. Install Stripe CLI: `winget install Stripe.StripeCli`
+1. Apply migrations `00044`, `00045`, and `00046` to your Supabase project.
+2. Set `ENABLE_STRIPE_CONNECT=false` in `.env.local` (or omit — default is platform mode).
+3. Fill platform Stripe keys in `.env.local` (see `.env.example`) — **your** Stripe account, not merchants.
+4. Install Stripe CLI: `winget install Stripe.StripeCli`
 
 ## Environment
 
 ```env
+ENABLE_STRIPE_CONNECT=false
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...   # from stripe listen output
@@ -31,7 +33,7 @@ Copy the `whsec_...` line into `STRIPE_WEBHOOK_SECRET`, then restart `pnpm dev`.
 
 ## Test flow — real marketplace checkout (recommended)
 
-1. Log in as **merchant** → `/merchant/payments` → **Stripe Bağla** → complete onboarding → enable **Kartla ödeme**.
+1. Log in as **merchant** → `/merchant/payments` → turn on **Online kartla sipariş al** (no Stripe linking).
 2. Open `/market/[slug]` → add products to cart → `/checkout`.
 3. Select **Kredi / Banka Kartı** → enter address → **Kartla Öde**.
 4. On Stripe Hosted Checkout pay with test card `4242 4242 4242 4242`, any future expiry, any CVC.
@@ -40,7 +42,7 @@ Copy the `whsec_...` line into `STRIPE_WEBHOOK_SECRET`, then restart `pnpm dev`.
 
 ## Test flow — demo storefront (optional)
 
-1. Merchant: `/connect` onboarding (same as above).
+1. Merchant: `/merchant/payments` → enable card toggle.
 2. `POST /api/stripe/products/create` with `{ "name": "Test", "unit_amount": 4500 }`.
 3. `/storefront` → **Satın al** → test card `4242 4242 4242 4242`.
 

@@ -1,20 +1,16 @@
 /**
- * Stripe Hosted Checkout — destination charges with application fee.
+ * Stripe Hosted Checkout — platform account only (MIN-LAUNCH).
  *
- * WHY Hosted Checkout for MVP: Stripe hosts PCI-sensitive card UI;
- * we only create a Session server-side and redirect the customer.
+ * All card payments land on the platform Stripe balance.
+ * Merchants are settled offline by admin (see merchant_settled_at on orders).
  */
 import { getStripe } from "@/lib/stripe/client";
 import { getStripeServerEnv } from "@/lib/stripe/env";
-import {
-  applicationFeeAmount,
-  assertPositiveAmount,
-} from "@/lib/stripe/helpers";
+import { assertPositiveAmount } from "@/lib/stripe/helpers";
 
 export interface CreateCheckoutSessionInput {
   orderId: string;
   merchantId: string;
-  connectedAccountId: string;
   lineItems: {
     name: string;
     unitAmountKurus: number;
@@ -29,9 +25,14 @@ export async function createHostedCheckoutSession(
 ): Promise<{ sessionId: string; url: string }> {
   assertPositiveAmount(input.totalAmountKurus, "totalAmountKurus");
 
-  const fee = applicationFeeAmount(input.totalAmountKurus);
   const stripe = getStripe();
   const { appUrl } = getStripeServerEnv();
+
+  const metadata = {
+    order_id: input.orderId,
+    merchant_id: input.merchantId,
+    platform: "sesta-kibris",
+  };
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -49,20 +50,9 @@ export async function createHostedCheckoutSession(
       };
     }),
     payment_intent_data: {
-      application_fee_amount: fee,
-      transfer_data: {
-        destination: input.connectedAccountId,
-      },
-      metadata: {
-        order_id: input.orderId,
-        merchant_id: input.merchantId,
-        platform: "sesta-kibris",
-      },
+      metadata,
     },
-    metadata: {
-      order_id: input.orderId,
-      merchant_id: input.merchantId,
-    },
+    metadata,
     success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/cancel?order_id=${input.orderId}`,
   });

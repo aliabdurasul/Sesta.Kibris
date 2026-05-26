@@ -1,12 +1,8 @@
 /**
  * Create a Stripe Hosted Checkout session for an existing order row.
- *
- * WHY separate from checkout.ts: market cart flow creates the order first via
- * create-order edge, then attaches Stripe session ids to that order.
  */
 import { createStripeAdminClient } from "@/lib/supabase/stripe-admin";
 import { createHostedCheckoutSession } from "@/lib/stripe/checkout";
-import { applicationFeeAmount } from "@/lib/stripe/helpers";
 
 export interface CheckoutFromOrderResult {
   url: string;
@@ -17,7 +13,6 @@ export interface CheckoutFromOrderResult {
 export async function createCheckoutSessionForOrder(input: {
   orderId: string;
   merchantId: string;
-  connectedAccountId: string;
   customerEmail?: string;
 }): Promise<CheckoutFromOrderResult> {
   const admin = createStripeAdminClient();
@@ -56,12 +51,10 @@ export async function createCheckoutSessionForOrder(input: {
   }));
 
   const totalAmount = order.total_amount as number;
-  const commission = applicationFeeAmount(totalAmount);
 
   const { sessionId, url } = await createHostedCheckoutSession({
     orderId: input.orderId,
     merchantId: input.merchantId,
-    connectedAccountId: input.connectedAccountId,
     lineItems,
     totalAmountKurus: totalAmount,
     customerEmail: input.customerEmail,
@@ -69,10 +62,7 @@ export async function createCheckoutSessionForOrder(input: {
 
   await admin
     .from("orders")
-    .update({
-      stripe_session_id: sessionId,
-      commission_amount: commission,
-    })
+    .update({ stripe_session_id: sessionId })
     .eq("id", input.orderId);
 
   return { url, sessionId, orderId: input.orderId };

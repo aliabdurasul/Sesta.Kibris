@@ -1,8 +1,7 @@
 /**
  * Small payment helpers shared by checkout and webhooks.
  *
- * MVP uses a flat 10% platform fee on card orders (application_fee_amount).
- * GRANITE phase will move this to per-merchant commission_rate in DB.
+ * applicationFeeAmount is legacy (Connect era) — optional for admin estimates only.
  */
 
 /** MVP platform take rate (10%). */

@@ -39,11 +39,6 @@ interface RequestBody {
   payment_method?: "cod" | "card" | null;
 }
 
-/** MVP platform fee — mirrors src/lib/stripe/helpers.ts (10%). */
-function applicationFeeAmountKurus(totalKurus: number): number {
-  return Math.round((totalKurus * 1000) / 10_000);
-}
-
 interface InventoryRow {
   id: string;
   product_id: string;
@@ -456,26 +451,7 @@ Deno.serve(async (req: Request) => {
           400,
         );
       }
-
-      const { data: connectRow } = await admin
-        .from("merchant_stripe_accounts")
-        .select("stripe_account_id")
-        .eq("merchant_id", merchant_id)
-        .maybeSingle();
-
-      if (!connectRow?.stripe_account_id) {
-        return json(
-          {
-            error: "Market Stripe hesabı bağlı değil.",
-            code: "STRIPE_NOT_CONNECTED",
-          },
-          400,
-        );
-      }
     }
-
-    const commissionAmount =
-      paymentMethod === "card" ? applicationFeeAmountKurus(totalAmount) : null;
 
     logEvent("order.create.order_insert", {
       merchantId: merchant_id,
@@ -503,7 +479,6 @@ Deno.serve(async (req: Request) => {
     if (paymentMethod === "card") {
       orderInsert.payment_method = "card";
       orderInsert.payment_status = "requires_payment";
-      orderInsert.commission_amount = commissionAmount;
     }
 
     const { data: order, error: orderError } = await admin

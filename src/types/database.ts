@@ -228,6 +228,8 @@ export interface Database {
           stripe_session_id: string | null;
           stripe_payment_intent_id: string | null;
           commission_amount: number | null;
+          paid_at: string | null;
+          merchant_settled_at: string | null;
         };
         Insert: Partial<Database["public"]["Tables"]["orders"]["Row"]> & {
           merchant_id: string;
