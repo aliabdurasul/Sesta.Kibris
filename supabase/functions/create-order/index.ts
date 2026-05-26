@@ -35,6 +35,13 @@ interface RequestBody {
   guest_name?: string | null;
   guest_phone?: string | null;
   guest_email?: string | null;
+  /** "card" = online payment pending; omit or "cod" = cash on delivery */
+  payment_method?: "cod" | "card" | null;
+}
+
+/** MVP platform fee — mirrors src/lib/stripe/helpers.ts (10%). */
+function applicationFeeAmountKurus(totalKurus: number): number {
+  return Math.round((totalKurus * 1000) / 10_000);
 }
 
 interface InventoryRow {
@@ -272,9 +279,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const paymentMethod =
+      body.payment_method === "card" ? "card" : null;
+
     const { data: merchant, error: merchantError } = await admin
       .from("merchants")
-      .select("id, minimum_order_amount, is_active, is_open")
+      .select("id, minimum_order_amount, is_active, is_open, accepts_online_payment")
       .eq("id", merchant_id)
       .maybeSingle();
 
@@ -436,6 +446,37 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (paymentMethod === "card") {
+      if (!merchant.accepts_online_payment) {
+        return json(
+          {
+            error: "Bu market kartla ödemeyi kabul etmiyor.",
+            code: "CARD_PAYMENTS_DISABLED",
+          },
+          400,
+        );
+      }
+
+      const { data: connectRow } = await admin
+        .from("merchant_stripe_accounts")
+        .select("stripe_account_id")
+        .eq("merchant_id", merchant_id)
+        .maybeSingle();
+
+      if (!connectRow?.stripe_account_id) {
+        return json(
+          {
+            error: "Market Stripe hesabı bağlı değil.",
+            code: "STRIPE_NOT_CONNECTED",
+          },
+          400,
+        );
+      }
+    }
+
+    const commissionAmount =
+      paymentMethod === "card" ? applicationFeeAmountKurus(totalAmount) : null;
+
     logEvent("order.create.order_insert", {
       merchantId: merchant_id,
       customerId,
@@ -445,21 +486,29 @@ Deno.serve(async (req: Request) => {
       inventoryIds: orderItems.map((oi) => oi.product_id),
     });
 
+    const orderInsert: Record<string, unknown> = {
+      customer_id: customerId,
+      merchant_id,
+      status: "PENDING",
+      total_amount: totalAmount,
+      delivery_address: delivery_address,
+      customer_notes: customerNotes,
+      guest_user_id: guestUserId,
+      guest_token: guestToken,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      guest_email: body.guest_email?.trim() || null,
+    };
+
+    if (paymentMethod === "card") {
+      orderInsert.payment_method = "card";
+      orderInsert.payment_status = "requires_payment";
+      orderInsert.commission_amount = commissionAmount;
+    }
+
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .insert({
-        customer_id: customerId,
-        merchant_id,
-        status: "PENDING",
-        total_amount: totalAmount,
-        delivery_address: delivery_address,
-        customer_notes: customerNotes,
-        guest_user_id: guestUserId,
-        guest_token: guestToken,
-        guest_name: guestName,
-        guest_phone: guestPhone,
-        guest_email: body.guest_email?.trim() || null,
-      })
+      .insert(orderInsert)
       .select("id")
       .single();
 

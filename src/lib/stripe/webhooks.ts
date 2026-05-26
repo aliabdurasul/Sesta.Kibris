@@ -117,6 +117,11 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
             ? session.payment_intent
             : session.payment_intent?.id ?? null;
         await markOrderPaid(admin, orderId, pi, session.id);
+        log.info("stripe.payment.completed", {
+          orderId,
+          sessionId: session.id,
+          source: "checkout.session.completed",
+        });
         log.info("stripe.webhook.checkout_completed", { orderId, sessionId: session.id });
         break;
       }
@@ -126,6 +131,11 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
         const orderId = pi.metadata?.order_id;
         if (orderId) {
           await markOrderPaid(admin, orderId, pi.id, null);
+          log.info("stripe.payment.completed", {
+            orderId,
+            paymentIntentId: pi.id,
+            source: "payment_intent.succeeded",
+          });
         }
         log.info("stripe.webhook.payment_intent_succeeded", {
           paymentIntentId: pi.id,
@@ -143,6 +153,10 @@ export async function handleStripeWebhookEvent(event: Stripe.Event): Promise<voi
             .update({ payment_status: "failed" })
             .eq("id", orderId)
             .eq("payment_status", "requires_payment");
+          log.info("stripe.payment.failed", {
+            orderId,
+            paymentIntentId: pi.id,
+          });
         }
         log.warn("stripe.webhook.payment_intent_failed", {
           paymentIntentId: pi.id,

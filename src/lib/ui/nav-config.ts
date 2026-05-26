@@ -72,6 +72,12 @@ export function adminNav(): NavItem[] {
       matchPrefixes: ["/admin/orders"],
     },
     {
+      href: "/admin/finance",
+      label: "Finans",
+      icon: "💰",
+      matchPrefixes: ["/admin/finance"],
+    },
+    {
       href: "/admin/catalog",
       label: "Ürünler",
       icon: "🍽️",
@@ -112,6 +118,12 @@ export function merchantNav(marketSlug: string): NavItem[] {
       label: "Envanter",
       icon: "📦",
       matchPrefixes: ["/merchant/products/browse"],
+    },
+    {
+      href: "/merchant/payments",
+      label: "Ödemeler",
+      icon: "💳",
+      matchPrefixes: ["/merchant/payments", "/connect"],
     },
     {
       href: "/merchant/profile",

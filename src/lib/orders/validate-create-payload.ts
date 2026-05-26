@@ -9,6 +9,8 @@ export interface ValidatedOrderItem {
   quantity: number;
 }
 
+export type CheckoutPaymentMethod = "cod" | "card";
+
 export interface ValidatedCreateOrderPayload {
   merchant_id: string;
   items: ValidatedOrderItem[];
@@ -17,6 +19,8 @@ export interface ValidatedCreateOrderPayload {
   guest_name?: string | null;
   guest_phone?: string | null;
   guest_email?: string | null;
+  /** Optional — card sets payment fields on order; default is COD (null columns). */
+  payment_method?: CheckoutPaymentMethod;
 }
 
 export type ValidateCreateOrderResult =
@@ -105,6 +109,18 @@ export function validateCreateOrderBody(
   const notes =
     asString(body["customer_notes"]) ?? asString(body["notes"]) ?? null;
 
+  let payment_method: CheckoutPaymentMethod | undefined;
+  const pmRaw = body["payment_method"];
+  if (pmRaw === "card" || pmRaw === "cod") {
+    payment_method = pmRaw;
+  } else if (pmRaw != null && pmRaw !== "") {
+    return {
+      ok: false,
+      code: "INVALID_PAYMENT_METHOD",
+      error: "Geçersiz ödeme yöntemi.",
+    };
+  }
+
   return {
     ok: true,
     payload: {
@@ -115,6 +131,7 @@ export function validateCreateOrderBody(
       guest_name: asString(body["guest_name"]),
       guest_phone: asString(body["guest_phone"]),
       guest_email: asString(body["guest_email"]),
+      payment_method,
     },
   };
 }

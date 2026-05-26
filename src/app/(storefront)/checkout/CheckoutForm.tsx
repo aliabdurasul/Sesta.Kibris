@@ -11,11 +11,13 @@
  * On success: clears cart and redirects to /customer/orders/[orderId].
  */
 import { useEffect, useState } from "react";
-import { resolveOrderIdFromCreateResponse } from "@/lib/orders/resolve-order-id";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useCartStore } from "@/lib/cart-store";
+import { CheckoutPaymentSection } from "@/components/checkout/CheckoutPaymentSection";
+import type { PaymentMethodChoice } from "@/components/checkout/PaymentMethodSelector";
+import { submitCheckout } from "@/lib/checkout/submit-checkout";
 
 const addressSchema = z.object({
   addressId: z.string().optional(),
@@ -44,6 +46,7 @@ export function CheckoutForm({ savedAddresses, userId: _userId }: CheckoutFormPr
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [useNewAddress, setUseNewAddress] = useState(savedAddresses.length === 0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodChoice>("cod");
 
   const defaultAddress = savedAddresses.find((a) => a.is_default) ?? savedAddresses[0];
 
@@ -114,31 +117,18 @@ export function CheckoutForm({ savedAddresses, userId: _userId }: CheckoutFormPr
         customer_notes: data.notes ?? null,
       };
 
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify(body),
+      const result = await submitCheckout({
+        paymentMethod,
+        body,
       });
 
-      const json = (await res.json()) as Record<string, unknown>;
-
-      if (!res.ok) {
-        throw new Error(
-          (typeof json["error"] === "string" ? json["error"] : null) ??
-            "Sipariş oluşturulamadı.",
-        );
+      if (result.kind === "card") {
+        window.location.href = result.url;
+        return;
       }
 
-      const orderId = resolveOrderIdFromCreateResponse(json);
-      if (!orderId) {
-        throw new Error("Sipariş oluşturuldu ancak sipariş numarası alınamadı.");
-      }
-
-      const target = `/customer/orders/${orderId}`;
       clearCart();
-      window.location.assign(target);
+      window.location.assign(`/customer/orders/${result.orderId}`);
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Beklenmedik bir hata oluştu.",
@@ -255,6 +245,13 @@ export function CheckoutForm({ savedAddresses, userId: _userId }: CheckoutFormPr
         </div>
       </div>
 
+      <CheckoutPaymentSection
+        merchantId={merchantId}
+        value={paymentMethod}
+        onChange={setPaymentMethod}
+        disabled={submitting}
+      />
+
       {serverError && (
         <div
           role="alert"
@@ -269,7 +266,11 @@ export function CheckoutForm({ savedAddresses, userId: _userId }: CheckoutFormPr
         disabled={submitting}
         className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-base font-bold text-white transition-colors hover:bg-blue-700 active:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting ? "Sipariş gönderiliyor..." : "Siparişi Onayla"}
+        {submitting
+          ? "Sipariş gönderiliyor..."
+          : paymentMethod === "card"
+            ? "Kartla Öde"
+            : "Siparişi Onayla"}
       </button>
     </form>
   );

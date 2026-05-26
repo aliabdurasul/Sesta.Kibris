@@ -75,6 +75,12 @@ export default async function MerchantProfilePage() {
           Logo, kapak görseli ve çalışma bilgilerinizi müşteriler görecek.
           URL slug değiştirilemez.
         </p>
+        <Link
+          href="/merchant/payments"
+          className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline"
+        >
+          Kartla ödeme ayarları →
+        </Link>
       </div>
 
       <MerchantProfileForm

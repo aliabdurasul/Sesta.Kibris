@@ -16,6 +16,9 @@ import {
   saveGuestToken,
 } from "@/lib/guest/token-client";
 import { sanitizeGuestPhone } from "@/lib/guest/token";
+import { CheckoutPaymentSection } from "@/components/checkout/CheckoutPaymentSection";
+import type { PaymentMethodChoice } from "@/components/checkout/PaymentMethodSelector";
+import { submitCheckout } from "@/lib/checkout/submit-checkout";
 
 const guestSchema = z.object({
   guestName: z.string().min(2, "Ad soyad zorunlu"),
@@ -32,6 +35,7 @@ export function GuestCheckoutForm() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodChoice>("cod");
 
   useEffect(() => setHydrated(true), []);
 
@@ -89,28 +93,22 @@ export function GuestCheckoutForm() {
         guest_phone: sanitizeGuestPhone(data.guestPhone),
       };
 
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
+      const result = await submitCheckout({
+        paymentMethod,
+        body,
+        guestToken,
       });
 
-      const json = (await res.json()) as {
-        order_id?: string;
-        guest_token?: string;
-        error?: string;
-      };
-
-      if (!res.ok || !json.order_id) {
-        throw new Error(json.error ?? "Sipariş oluşturulamadı.");
+      if (result.kind === "card") {
+        window.location.href = result.url;
+        return;
       }
 
-      const persistedToken = json.guest_token ?? guestToken;
-      saveGuestToken(persistedToken, json.order_id);
+      const persistedToken = result.guestToken ?? guestToken;
+      saveGuestToken(persistedToken, result.orderId);
       clearCart();
-      rememberGuestOrder(json.order_id);
-      router.push(`/order/${json.order_id}`);
+      rememberGuestOrder(result.orderId);
+      router.push(`/order/${result.orderId}`);
     } catch (err) {
       setServerError(
         err instanceof Error ? err.message : "Beklenmedik bir hata oluştu.",
@@ -204,6 +202,13 @@ export function GuestCheckoutForm() {
         </div>
       </div>
 
+      <CheckoutPaymentSection
+        merchantId={merchantId}
+        value={paymentMethod}
+        onChange={setPaymentMethod}
+        disabled={submitting}
+      />
+
       {serverError && (
         <div
           role="alert"
@@ -218,7 +223,11 @@ export function GuestCheckoutForm() {
         disabled={submitting}
         className="w-full rounded-2xl bg-blue-600 py-4 text-base font-bold text-white disabled:opacity-60"
       >
-        {submitting ? "Gönderiliyor..." : "Siparişi Ver"}
+        {submitting
+          ? "Gönderiliyor..."
+          : paymentMethod === "card"
+            ? "Kartla Öde"
+            : "Siparişi Ver"}
       </button>
 
       <p className="text-center text-sm text-gray-500">

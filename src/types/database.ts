@@ -87,6 +87,7 @@ export interface Database {
           is_onboarded: boolean;
           updated_by_merchant: boolean;
           onboarded_at: string | null;
+          accepts_online_payment: boolean;
           created_at: string;
           updated_at: string;
         };
