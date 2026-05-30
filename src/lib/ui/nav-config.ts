@@ -84,6 +84,12 @@ export function adminNav(): NavItem[] {
       matchPrefixes: ["/admin/catalog"],
     },
     {
+      href: "/admin/promos",
+      label: "Kampanyalar",
+      icon: "🎯",
+      matchPrefixes: ["/admin/promos"],
+    },
+    {
       href: "/admin/actors",
       label: "Aktörler",
       icon: "👥",

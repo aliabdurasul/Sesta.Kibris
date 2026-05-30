@@ -2,19 +2,24 @@ import { Suspense } from "react";
 import type { SessionUser } from "@/lib/auth";
 import { BrowseHeader } from "@/components/landing/BrowseHeader";
 import { PromoHeroSlider } from "@/components/landing/PromoHeroSlider";
-import { buildPromoSlidesFromMerchants } from "@/lib/landing/promo-slides";
 import { CategoryScroll } from "@/components/landing/CategoryScroll";
 import { MarketBrowseSection } from "@/components/landing/MarketBrowseSection";
 import type { MarketCardMerchant } from "@/lib/merchants/list-public";
+import type { HomepagePromoSlide } from "@/types/promo";
 
 interface LandingPageProps {
   merchants: MarketCardMerchant[];
+  promoSlides: HomepagePromoSlide[];
   error: string | null;
   session: SessionUser | null;
 }
 
-export function LandingPage({ merchants, error, session }: LandingPageProps) {
-  const promoSlides = buildPromoSlidesFromMerchants(merchants);
+export function LandingPage({
+  merchants,
+  promoSlides,
+  error,
+  session,
+}: LandingPageProps) {
 
   return (
     <div className="home-screen min-h-screen bg-app-bg">

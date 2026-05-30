@@ -458,6 +458,48 @@ export interface Database {
         };
         Update: Partial<Database["public"]["Tables"]["merchant_inventory"]["Row"]>;
       };
+      homepage_promos: {
+        Row: {
+          id: string;
+          title: string;
+          subtitle: string | null;
+          image_url: string;
+          market_id: string;
+          cta_text: string;
+          is_active: boolean;
+          sort_order: number;
+          starts_at: string | null;
+          ends_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          subtitle?: string | null;
+          image_url: string;
+          market_id: string;
+          cta_text?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          subtitle?: string | null;
+          image_url?: string;
+          market_id?: string;
+          cta_text?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          updated_at?: string;
+        };
+      };
       product_suggestions: {
         Row: {
           id: string;
