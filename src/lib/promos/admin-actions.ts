@@ -11,11 +11,17 @@ import {
   isValidHttpUrl,
 } from "@/lib/validation/http-url";
 import { normalizeStoredPromoImageUrl } from "@/lib/storage/promo-banner";
+import type { Database } from "@/types/database";
 import type {
   HomepagePromo,
   HomepagePromoFormData,
   HomepagePromoWithMarket,
 } from "@/types/promo";
+
+type HomepagePromoInsert =
+  Database["public"]["Tables"]["homepage_promos"]["Insert"];
+type HomepagePromoUpdate =
+  Database["public"]["Tables"]["homepage_promos"]["Update"];
 
 type ActionResult = { success: true } | { success: false; error: string };
 
@@ -153,7 +159,7 @@ export async function adminCreatePromo(
 
   const supabase = createAdminServerClient();
   const p = validated.payload;
-  const { error } = await supabase.from("homepage_promos").insert({
+  const insertPayload: HomepagePromoInsert = {
     title: p.title,
     subtitle: p.subtitle || null,
     image_url: p.image_url,
@@ -161,7 +167,10 @@ export async function adminCreatePromo(
     cta_text: p.cta_text,
     is_active: p.is_active,
     sort_order: p.sort_order,
-  });
+  };
+  const { error } = await supabase
+    .from("homepage_promos")
+    .insert(insertPayload as never);
 
   if (error) {
     log.error("promos.admin.create", { reason: error.message });
@@ -181,17 +190,18 @@ export async function adminUpdatePromo(
 
   const supabase = createAdminServerClient();
   const p = validated.payload;
+  const updatePayload: HomepagePromoUpdate = {
+    title: p.title,
+    subtitle: p.subtitle || null,
+    image_url: p.image_url,
+    market_id: p.market_id,
+    cta_text: p.cta_text,
+    is_active: p.is_active,
+    sort_order: p.sort_order,
+  };
   const { error } = await supabase
     .from("homepage_promos")
-    .update({
-      title: p.title,
-      subtitle: p.subtitle || null,
-      image_url: p.image_url,
-      market_id: p.market_id,
-      cta_text: p.cta_text,
-      is_active: p.is_active,
-      sort_order: p.sort_order,
-    })
+    .update(updatePayload as never)
     .eq("id", id);
 
   if (error) {
@@ -210,7 +220,7 @@ export async function adminSetPromoActive(
   const supabase = createAdminServerClient();
   const { error } = await supabase
     .from("homepage_promos")
-    .update({ is_active: isActive })
+    .update({ is_active: isActive } as never)
     .eq("id", id);
 
   if (error) {
