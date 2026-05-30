@@ -66,12 +66,13 @@ function PromoHeroSliderInner({ slides }: { slides: HomepagePromoSlide[] }) {
   return (
     <section className="px-4" aria-label="Kampanyalar">
       <div
-        className="relative touch-pan-y overflow-hidden rounded-[1.125rem] shadow-[0_4px_20px_rgba(16,24,40,0.08)]"
+        className="relative touch-pan-y overflow-hidden rounded-2xl shadow-[0_2px_12px_rgba(16,24,40,0.06)]"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
         <Link href={slide.href} className="group block">
-          <div className="relative aspect-video w-full overflow-hidden bg-brand-navy">
+          {/* Shorter than 16:9 — compact hero on mobile home */}
+          <div className="relative aspect-[2.35/1] max-h-[168px] w-full overflow-hidden bg-brand-navy sm:max-h-[180px]">
             {slide.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -91,16 +92,16 @@ function PromoHeroSliderInner({ slides }: { slides: HomepagePromoSlide[] }) {
               aria-hidden
             />
 
-            <div className="relative flex h-full flex-col justify-end p-4 pb-5 text-white">
-              <h2 className="text-lg font-bold leading-tight drop-shadow-sm sm:text-xl">
+            <div className="relative flex h-full flex-col justify-end p-3 pb-3.5 text-white">
+              <h2 className="text-base font-bold leading-snug drop-shadow-sm line-clamp-1">
                 {slide.title}
               </h2>
               {slide.subtitle && (
-                <p className="mt-1 line-clamp-2 text-sm text-white/90">
+                <p className="mt-0.5 line-clamp-1 text-xs text-white/90">
                   {slide.subtitle}
                 </p>
               )}
-              <span className="mt-3 inline-flex w-fit items-center rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-brand-navy shadow-sm transition group-active:bg-white">
+              <span className="mt-2 inline-flex w-fit items-center rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-brand-navy shadow-sm transition group-active:bg-white">
                 {slide.cta} →
               </span>
             </div>
@@ -109,7 +110,7 @@ function PromoHeroSliderInner({ slides }: { slides: HomepagePromoSlide[] }) {
       </div>
 
       {slides.length > 1 && (
-        <div className="mt-2.5 flex justify-center gap-1.5">
+        <div className="mt-2 flex justify-center gap-1.5">
           {slides.map((s, i) => (
             <button
               key={s.id}
